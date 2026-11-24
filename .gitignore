@@ -36,6 +36,7 @@ FIREBASE_SETUP.md
 !app.json
 !vercel.json
 !firestore.indexes.json
+!package-lock.json
 
 # Expo
 .expo/
