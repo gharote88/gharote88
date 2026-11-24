@@ -1,0 +1,65 @@
+name: Fact of the Day
+
+on:
+  schedule:
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  rotate-fact:
+    name: Rotate Fact of the Day
+    runs-on: ubuntu-latest
+    steps:
+      - name: Select and insert fact of the day
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          TODAY=$(TZ="Asia/Kolkata" date +"%Y-%m-%d")
+          echo "Rotating fact of the day for $TODAY"
+
+          EXISTING=$(curl -s \
+            "${SUPABASE_URL}/rest/v1/fact_of_the_day?date=eq.${TODAY}&select=id" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+
+          if [ "$EXISTING" != "[]" ]; then
+            echo "Fact already set for $TODAY, skipping."
+            exit 0
+          fi
+
+          ALL_IDS=$(curl -s \
+            "${SUPABASE_URL}/rest/v1/fun_facts?select=id" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+
+          CUTOFF=$(date -d "30 days ago" +"%Y-%m-%d" 2>/dev/null || date -v-30d +"%Y-%m-%d")
+          RECENT_IDS=$(curl -s \
+            "${SUPABASE_URL}/rest/v1/fact_of_the_day?date=gte.${CUTOFF}&select=fact_id" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+
+          SELECTED_ID=$(python3 -c "
+import json, random, sys
+all_ids = [r['id'] for r in json.loads(sys.argv[1])]
+recent = [r['fact_id'] for r in json.loads(sys.argv[2])]
+available = [i for i in all_ids if i not in recent] or all_ids
+print(random.choice(available))
+" "$ALL_IDS" "$RECENT_IDS")
+
+          echo "Selected fact ID: $SELECTED_ID"
+
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${SUPABASE_URL}/rest/v1/fact_of_the_day" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "{\"date\":\"${TODAY}\",\"fact_id\":\"${SELECTED_ID}\"}")
+
+          echo "Insert response: $RESPONSE"
+          if [ "$RESPONSE" != "201" ]; then
+            echo "Failed to insert fact of the day (status $RESPONSE)"
+            exit 1
+          fi
+          echo "Fact of the day set successfully for $TODAY"

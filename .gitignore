@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+packages/functions/lib/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Test coverage
+coverage/
+
+# Firebase (not used — project uses Supabase/Vercel)
+.firebaserc
+firebase.json
+firestore.rules
+firestore.indexes.json
+database.rules
+storage.rules
+FIREBASE_SETUP.md
+
+# Google Cloud service account keys
+*.json
+!package.json
+!tsconfig.json
+!app.json
+!vercel.json
+!firestore.indexes.json
+
+# Expo
+.expo/

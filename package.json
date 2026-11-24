@@ -1,0 +1,29 @@
+{
+  "name": "marathi-learning-app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:app": "npm run dev --workspace=packages/app",
+    "dev:web": "npm run dev --workspace=packages/web",
+    "build:app": "npm run build --workspace=packages/app",
+    "build:web": "npm run build --workspace=packages/web",
+    "build:shared": "npm run build --workspace=packages/shared",
+    "lint": "eslint packages/*/src --ext .ts,.tsx",
+    "format": "prettier --write \"packages/*/src/**/*.{ts,tsx}\"",
+    "deploy": "vercel --prod"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
+    "vercel": "^66.6.0"
+  }
+}

@@ -1,0 +1,33 @@
+name: Scheduled Cleanup
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # daily at 02:00 UTC (same schedule as original Firebase function)
+  workflow_dispatch:       # allow manual trigger
+
+jobs:
+  clear-transcription-logs:
+    name: Clear stale transcription logs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete logs older than 24 hours
+        run: |
+          CUTOFF=$(date -u -d '24 hours ago' +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
+                   date -u -v-24H +"%Y-%m-%dT%H:%M:%SZ")
+
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X DELETE \
+            "$SUPABASE_URL/rest/v1/transcription_logs?created_at=lt.$CUTOFF" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json")
+
+          echo "Response status: $RESPONSE"
+          if [ "$RESPONSE" != "200" ] && [ "$RESPONSE" != "204" ]; then
+            echo "Cleanup failed with status $RESPONSE"
+            exit 1
+          fi
+          echo "Transcription logs cleanup complete"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

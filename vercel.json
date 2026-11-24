@@ -1,0 +1,50 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api/journey/checkpoints/:id", "destination": "/api/journey/checkpoints/[id]?id=:id" },
+    { "source": "/api/lessons/:id",             "destination": "/api/lessons/[id]?id=:id" },
+    { "source": "/api/reading/passages/:id",    "destination": "/api/reading/passages/[id]?id=:id" },
+    { "source": "/api/mini-games/:type",        "destination": "/api/mini-games/index?type=:type" },
+    { "source": "/api/mini-games/:type/submit", "destination": "/api/mini-games/index?type=:type&action=submit" },
+    { "source": "/api/fun-facts/:id/favorite",  "destination": "/api/fun-facts/index?id=:id&action=favorite" },
+    { "source": "/api/story/chapters/:id/scenes", "destination": "/api/story/scenes?chapterId=:id" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin",  "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type,Authorization" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options",        "value": "DENY" },
+        { "key": "Referrer-Policy",        "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ],
+  "functions": {
+    "api/speech/index.ts": {
+      "maxDuration": 30,
+      "memory": 512
+    },
+    "api/writing/evaluate.ts": {
+      "maxDuration": 15
+    },
+    "api/reading/read-aloud.ts": {
+      "maxDuration": 30,
+      "memory": 512
+    }
+  },
+  "env": {
+    "SUPABASE_URL":               "@supabase_url",
+    "SUPABASE_SERVICE_ROLE_KEY":  "@supabase_service_role_key",
+    "HF_API_TOKEN":               "@hf_api_token",
+    "GOOGLE_CLOUD_KEY_FILE":      "@google_cloud_key_file",
+    "GOOGLE_CLOUD_PROJECT_ID":    "@google_cloud_project_id"
+  }
+}
