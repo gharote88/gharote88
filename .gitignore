@@ -40,3 +40,5 @@ FIREBASE_SETUP.md
 
 # Expo
 .expo/
+.vercel
+.env*

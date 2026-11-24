@@ -216,7 +216,7 @@ const JourneyProgressTracker = forwardRef<JourneyProgressTrackerHandle, JourneyP
       default:
         return null;
     }
-  };
+  });
 
   if (loading) {
     return (
@@ -238,7 +238,7 @@ const JourneyProgressTracker = forwardRef<JourneyProgressTrackerHandle, JourneyP
 
   return (
     <>
-      {/* Progress Bar Component */}}
+      {/* Progress Bar Component */}
       <View style={styles.progressContainer}>
         <View style={styles.progressHeader}>
           <Text style={styles.progressLabel}>Journey Progress</Text>
@@ -313,7 +313,6 @@ const JourneyProgressTracker = forwardRef<JourneyProgressTrackerHandle, JourneyP
       </Modal>
     </>
   );
-};
 
 const styles = StyleSheet.create({
   progressContainer: {
