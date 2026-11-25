@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authApi, progressApi, gamificationApi } from '../api/client';
+import { authApi, progressApi } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { CardSkeleton, StatGridSkeleton } from '../components/Skeleton';
@@ -22,36 +22,61 @@ export default function ParentDashboardPage() {
   const [linkEmail, setLinkEmail] = useState('');
   const [linkError, setLinkError] = useState('');
   const [linkSuccess, setLinkSuccess] = useState('');
-  const [reauthPassword, setReauthPassword] = useState('');
   const [reauthError, setReauthError] = useState('');
 
+  // If we just returned from the OAuth re-auth round-trip, skip the gate
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      // A fresh session (issued within the last 30 s) means we just re-authed
+      const issuedAt = session.user.last_sign_in_at
+        ? new Date(session.user.last_sign_in_at).getTime()
+        : 0;
+      if (Date.now() - issuedAt < 30_000) {
+        setView('dashboard');
+        loadChildren();
+      }
+    });
+  }, []);
+
   // Re-auth gate: require Google re-sign before accessing parent controls
-  function handleReauth() {
-    // In production this would re-trigger Google OAuth flow.
-    // Here we verify the user is a parent role and simulate re-auth.
+  async function handleReauth() {
     if (user?.role !== 'parent') {
       setReauthError('This section is only for parent accounts.');
       return;
     }
-    if (!reauthPassword) {
-      setReauthError('Please confirm your identity to continue.');
-      return;
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: { prompt: 'select_account' },
+        },
+      });
+      if (error) throw error;
+      // OAuth redirect will happen — mark intent so callback can return here
+      sessionStorage.setItem('postReauthRedirect', '/parent');
+    } catch (e: any) {
+      setReauthError(e.message ?? 'Re-authentication failed');
     }
-    setView('dashboard');
-    loadChildren();
   }
 
   async function loadChildren() {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
       const { data } = await supabase
-        .from('users')
-        .select('children')
-        .eq('id', user.id)
-        .single();
-      const linked: Child[] = data?.children ?? [];
+        .from('parent_child_links')
+        .select('child_id, users!parent_child_links_child_id_fkey(id, display_name, email, age, avatar_url)')
+        .eq('parent_id', authUser.id);
+      const linked: Child[] = (data ?? []).map((row: any) => ({
+        id: row.users.id,
+        name: row.users.display_name ?? '',
+        email: row.users.email ?? '',
+        age: row.users.age,
+        avatarUrl: row.users.avatar_url,
+      }));
       setChildren(linked);
       if (linked.length > 0) selectChild(linked[0]);
     } finally {
@@ -63,16 +88,10 @@ export default function ParentDashboardPage() {
     setSelectedChild(child);
     setLoading(true);
     try {
-      // Fetch child's progress — API uses auth token so parent sees own data here;
-      // in production a parent-scoped endpoint would be used.
-      const [prog, str, bdg] = await Promise.all([
-        progressApi.dashboard(),
-        gamificationApi.streak(),
-        gamificationApi.badges(),
-      ]);
-      setChildProgress(prog);
-      setChildStreak(str);
-      setChildBadges((bdg as any).badges ?? []);
+      const data = await progressApi.childDashboard(child.id);
+      setChildProgress(data);
+      setChildStreak(data.streak ?? null);
+      setChildBadges(data.badges ?? []);
     } finally {
       setLoading(false);
     }
@@ -93,9 +112,14 @@ export default function ParentDashboardPage() {
   }
 
   async function unlinkChild() {
-    // Unlink is a destructive action — show confirm first (handled by view state)
+    if (!selectedChild) return;
+    try {
+      await authApi.unlinkChild(selectedChild.id);
+    } catch {
+      // non-fatal — remove from local state regardless
+    }
     setView('dashboard');
-    setChildren(prev => prev.filter(c => c.id !== selectedChild?.id));
+    setChildren(prev => prev.filter(c => c.id !== selectedChild.id));
     setSelectedChild(null);
     setChildProgress(null);
   }
@@ -114,14 +138,7 @@ export default function ParentDashboardPage() {
         <div style={s.reauthIcon}>🔐</div>
         <h3 style={s.reauthTitle}>Verify your identity</h3>
         <p style={s.reauthSub}>For your child's safety, please confirm before accessing parent controls.</p>
-        <input
-          style={s.input}
-          type="password"
-          placeholder="Enter any text to confirm"
-          value={reauthPassword}
-          onChange={e => setReauthPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleReauth()}
-        />
+        <p style={s.reauthNote}>You'll be redirected to Google to confirm your identity.</p>
         {reauthError && <p style={s.error}>{reauthError}</p>}
         <button style={s.btnPrimary} onClick={handleReauth}>Confirm & Continue</button>
         <button style={s.btnSecondary} onClick={() => navigate('/dashboard')}>Cancel</button>
@@ -310,7 +327,7 @@ const s: Record<string, React.CSSProperties> = {
   reauthIcon: { fontSize: 48 },
   reauthTitle: { fontSize: 20, fontWeight: 700, color: '#1a1a2e', margin: 0 },
   reauthSub: { fontSize: 14, color: '#666', margin: 0, lineHeight: 1.5 },
-  input: { width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '12px 16px', fontSize: 15, outline: 'none', boxSizing: 'border-box' },
+  reauthNote: { fontSize: 13, color: '#888', margin: 0, lineHeight: 1.5 },
   error: { color: '#dc2626', fontSize: 13, margin: 0 },
   success: { color: '#16a34a', fontSize: 13, margin: 0 },
   btnPrimary: { background: '#FF6B35', color: '#fff', border: 'none', borderRadius: 12, padding: '14px', fontSize: 16, fontWeight: 700, cursor: 'pointer' },

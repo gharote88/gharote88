@@ -10,6 +10,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { supabase } from '../supabase';
+import { initWhisper } from 'whisper.rn';
+import type { WhisperContext } from 'whisper.rn';
+
+// Bundled whisper tiny model — placed at assets/whisper/ggml-tiny.bin
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const WHISPER_MODEL_PATH: number = require('../../assets/whisper/ggml-tiny.bin') as number;
 
 interface Phrase {
   id: string;
@@ -38,8 +44,15 @@ const SpeakingPractice: React.FC<SpeakingPracticeProps> = ({ phrase, onComplete,
   
   const soundRef = useRef<Audio.Sound | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const whisperRef = useRef<WhisperContext | null>(null);
 
+  // Load Whisper model once on mount
   useEffect(() => {
+    initWhisper({ filePath: WHISPER_MODEL_PATH })
+      .then((ctx: WhisperContext) => { whisperRef.current = ctx; })
+      .catch((e: Error) =>
+        console.warn('Whisper model load failed (offline STT unavailable):', e.message)
+      );
     return () => {
       cleanup();
     };
@@ -158,17 +171,37 @@ const SpeakingPractice: React.FC<SpeakingPracticeProps> = ({ phrase, onComplete,
   // Web: use browser Web Speech API (free, no server call)
   const evaluateWithWebSpeech = (): Promise<string> =>
     new Promise((resolve, reject) => {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!SpeechRecognition) return reject(new Error('Web Speech API not supported'));
-      const recognition = new SpeechRecognition();
+      type SpeechRecognitionCtor = new () => {
+        lang: string;
+        interimResults: boolean;
+        maxAlternatives: number;
+        onresult: (e: { results: { [k: number]: { [k: number]: { transcript: string } } } }) => void;
+        onerror: (e: { error: string }) => void;
+        start: () => void;
+      };
+      const SpeechRecognitionClass: SpeechRecognitionCtor | undefined =
+        (window as Record<string, unknown>).SpeechRecognition as SpeechRecognitionCtor
+        ?? (window as Record<string, unknown>).webkitSpeechRecognition as SpeechRecognitionCtor;
+      if (!SpeechRecognitionClass) return reject(new Error('Web Speech API not supported'));
+      const recognition = new SpeechRecognitionClass();
       recognition.lang = 'mr-IN';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
-      recognition.onresult = (e: any) => resolve(e.results[0][0].transcript);
-      recognition.onerror = (e: any) => reject(new Error(e.error));
+      recognition.onresult = (e) => resolve(e.results[0][0].transcript);
+      recognition.onerror = (e) => reject(new Error(e.error));
       recognition.start();
     });
+
+  // Whisper offline STT fallback — runs fully on-device, supports Marathi (mr)
+  const evaluateWithWhisper = async (audioUri: string): Promise<string> => {
+    if (!whisperRef.current) throw new Error('Whisper model not loaded');
+    const { result } = await whisperRef.current.transcribe(audioUri, {
+      language: 'mr',
+      maxLen: 1,
+      tokenTimestamps: false,
+    });
+    return result.trim();
+  };
 
   const evaluatePronunciation = async (audioUri: string) => {
     try {
@@ -177,7 +210,8 @@ const SpeakingPractice: React.FC<SpeakingPracticeProps> = ({ phrase, onComplete,
       let transcript: string | null = null;
 
       // Web path: use Web Speech API directly
-      if (typeof window !== 'undefined' && (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) {
+      const w = window as Record<string, unknown>;
+      if (typeof window !== 'undefined' && (w.SpeechRecognition ?? w.webkitSpeechRecognition)) {
         try {
           transcript = await evaluateWithWebSpeech();
         } catch {
@@ -200,19 +234,38 @@ const SpeakingPractice: React.FC<SpeakingPracticeProps> = ({ phrase, onComplete,
         setFeedback(generateFeedback(data.score));
         onComplete(data.score);
       } else {
-        // Mobile path: send audio to server (HF Whisper → Google STT fallback)
-        const audioRes = await fetch(audioUri);
-        const buffer = await audioRes.arrayBuffer();
-        const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-        const res = await fetch(
-          `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/speech?action=evaluate`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-            body: JSON.stringify({ audioData: audioBase64, expectedPhrase: phrase.marathiText, referenceId }),
+        // Mobile path: try server (HF Whisper → Google STT fallback), then Whisper offline
+        let data: { score: number } | null = null;
+        try {
+          const audioRes = await fetch(audioUri);
+          const buffer = await audioRes.arrayBuffer();
+          const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+          const res = await fetch(
+            `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/speech?action=evaluate`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+              body: JSON.stringify({ audioData: audioBase64, expectedPhrase: phrase.marathiText, referenceId }),
+            }
+          );
+          data = await res.json();
+        } catch {
+          // Server unreachable — fall back to Whisper on-device STT
+          try {
+            const whisperTranscript = await evaluateWithWhisper(audioUri);
+            const res = await fetch(
+              `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/speech?action=evaluate`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+                body: JSON.stringify({ transcript: whisperTranscript, expectedPhrase: phrase.marathiText, referenceId }),
+              }
+            );
+            data = await res.json();
+          } catch {
+            data = { score: 0 };
           }
-        );
-        const data = await res.json();
+        }
         setScore(data.score);
         setFeedback(generateFeedback(data.score));
         onComplete(data.score);

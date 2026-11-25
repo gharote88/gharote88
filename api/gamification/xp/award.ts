@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { adminClient, getUserId } from '../../_lib/supabase';
-import { computeLevel } from '../../_lib/gamification';
+import { computeLevel, evaluateBadges } from '../../_lib/gamification';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -39,12 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     ]);
 
-    // Fire-and-forget badge evaluation
-    fetch(`${process.env.VERCEL_URL}/api/gamification/badges/evaluate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: req.headers.authorization! },
-      body: JSON.stringify({ totalXp: newTotalXp, level }),
-    }).catch(() => {});
+    // Fire-and-forget badge evaluation — direct call, no HTTP, no SSRF surface
+    evaluateBadges(userId, newTotalXp, level).catch(() => {});
 
     return res.status(200).json({ totalXp: newTotalXp, level, levelTitle, xpAwarded: xpAmount });
   } catch (err: any) {

@@ -18,6 +18,7 @@ export default function ParentScreen() {
   const [loading, setLoading] = useState(false);
   const [linkEmail, setLinkEmail] = useState('');
   const [reauthInput, setReauthInput] = useState('');
+  const [reauthLoading, setReauthLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function api(path: string, opts?: RequestInit) {
@@ -29,11 +30,25 @@ export default function ParentScreen() {
     return res.json();
   }
 
-  function handleReauth() {
-    if (!reauthInput.trim()) { setError('Please confirm your identity to continue.'); return; }
+  async function handleReauth() {
+    if (!reauthInput.trim()) { setError('Please enter your password to continue.'); return; }
     setError('');
-    setScreen('dashboard');
-    loadChildren();
+    setReauthLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) { setError('Unable to verify identity.'); return; }
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: reauthInput,
+      });
+      if (authError) { setError('Incorrect password. Please try again.'); return; }
+      setScreen('dashboard');
+      loadChildren();
+    } catch {
+      setError('Verification failed. Please try again.');
+    } finally {
+      setReauthLoading(false);
+    }
   }
 
   async function loadChildren() {
@@ -55,9 +70,9 @@ export default function ParentScreen() {
     setLoading(true);
     try {
       const [prog, str, bdg] = await Promise.all([
-        api('/api/progress/dashboard'),
-        api('/api/gamification/streak/get'),
-        api('/api/gamification/badges/get'),
+        api(`/api/progress/child-dashboard?childId=${child.id}`),
+        api(`/api/gamification/streak?childId=${child.id}`),
+        api(`/api/gamification/badges?childId=${child.id}`),
       ]);
       setChildProgress(prog);
       setChildStreak(str);
@@ -102,9 +117,11 @@ export default function ParentScreen() {
         <Text style={{ fontSize: 48, marginBottom: 12 }}>🔐</Text>
         <Text style={s.reauthTitle}>Verify your identity</Text>
         <Text style={s.reauthSub}>For your child's safety, please confirm before accessing parent controls.</Text>
-        <TextInput style={s.input} placeholder="Enter any text to confirm" value={reauthInput} onChangeText={setReauthInput} secureTextEntry placeholderTextColor="#999" />
+        <TextInput style={s.input} placeholder="Enter your password" value={reauthInput} onChangeText={setReauthInput} secureTextEntry placeholderTextColor="#999" />
         {error ? <Text style={s.error}>{error}</Text> : null}
-        <TouchableOpacity style={s.primaryBtn} onPress={handleReauth}><Text style={s.primaryBtnText}>Confirm & Continue</Text></TouchableOpacity>
+        <TouchableOpacity style={[s.primaryBtn, reauthLoading && { opacity: 0.6 }]} onPress={handleReauth} disabled={reauthLoading}>
+          <Text style={s.primaryBtnText}>{reauthLoading ? 'Verifying...' : 'Confirm & Continue'}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={s.secondaryBtn} onPress={() => router.back()}><Text style={s.secondaryBtnText}>Cancel</Text></TouchableOpacity>
       </View>
     </SafeAreaView>

@@ -1,7 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { adminClient, getUserId } from '../../_lib/supabase';
+import recordHandler from './record';
 
+// Unified /api/gamification/streak — GET returns streak, POST records activity
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'POST') return recordHandler(req, res);
+
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   try {

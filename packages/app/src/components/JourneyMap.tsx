@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Svg, Path, Circle, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
-import LottieView from 'lottie-react-native';
 import { supabase } from '../supabase';
 
 const { width, height } = Dimensions.get('window');
@@ -70,6 +69,25 @@ function scaleCoordinates(checkpoints: Checkpoint[]) {
     sx: cp.position.x * s + PADDING,
     sy: cp.position.y * s + PADDING,
   }));
+}
+
+/** Inline celebration — no external asset needed */
+function CelebrationBurst({ onDone }: { onDone: () => void }) {
+  const scale = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.sequence([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 4 }),
+      Animated.delay(1200),
+      Animated.timing(opacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start(onDone);
+  }, []);
+  return (
+    <Animated.View style={{ transform: [{ scale }], opacity, alignItems: 'center' }}>
+      <Text style={{ fontSize: 72 }}>🎉</Text>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#fff', marginTop: 8 }}>Journey Complete!</Text>
+    </Animated.View>
+  );
 }
 
 const JourneyMap: React.FC<JourneyMapProps> = ({ onCheckpointPress, onJourneyComplete }) => {
@@ -303,15 +321,10 @@ const JourneyMap: React.FC<JourneyMapProps> = ({ onCheckpointPress, onJourneyCom
           <Text style={styles.avatarEmoji}>🧑</Text>
         </Animated.View>
 
-        {/* Celebration overlay */}
+        {/* Celebration overlay — inline animated fallback (no Lottie asset required) */}
         {showCelebration && (
           <View style={styles.celebrationOverlay}>
-            <LottieView
-              source={require('../assets/animations/celebration.json')}
-              autoPlay loop={false}
-              style={styles.celebrationAnim}
-              onAnimationFinish={() => setShowCelebration(false)}
-            />
+            <CelebrationBurst onDone={() => setShowCelebration(false)} />
           </View>
         )}
       </View>

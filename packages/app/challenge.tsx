@@ -5,12 +5,28 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@marathi-learning/shared';
 
+type Challenge = {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  xpReward: number;
+  targetText?: string;
+  transliteration?: string;
+  completed: boolean;
+};
+
+type ChallengeResult = {
+  xpAwarded: number;
+  bonusXp: number;
+};
+
 export default function ChallengeScreen() {
   const router = useRouter();
-  const [challenge, setChallenge] = useState<any>(null);
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ChallengeResult | null>(null);
 
   useEffect(() => { load(); }, []);
 

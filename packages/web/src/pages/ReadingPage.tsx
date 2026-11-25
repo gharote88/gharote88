@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { readingApi, gamificationApi } from '../api/client';
 
@@ -6,6 +6,7 @@ type Passage = { id: string; title: string; level: string; wordCount: number; es
 type VocabWord = { word: string; meaning: string; transliteration: string; audioUrl?: string };
 type Question = { id: string; question: string; type: string; options?: string[]; correctAnswer: string };
 type PassageDetail = Passage & { contentMarathi: string; contentEnglish: string; vocabulary: VocabWord[]; questions: Question[] };
+type ReadAloudResult = { fluencyScore: number; pronunciationAccuracy: number; wpm: number; xpAward: number; transcribed: string };
 
 type View = 'list' | 'read' | 'quiz' | 'result';
 
@@ -19,11 +20,22 @@ export default function ReadingPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [quizResult, setQuizResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [readAloudResult, setReadAloudResult] = useState<ReadAloudResult | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [readAloudProcessing, setReadAloudProcessing] = useState(false);
+  const [readingProgress, setReadingProgress] = useState<any>(null);
+  const mediaRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
     setLoading(true);
     readingApi.passages(level).then((res: any) => setPassages(res.passages || [])).finally(() => setLoading(false));
   }, [level]);
+
+  useEffect(() => {
+    readingApi.progress().then(setReadingProgress).catch(() => null);
+  }, []);
 
   async function openPassage(id: string) {
     setLoading(true);
@@ -33,8 +45,46 @@ export default function ReadingPage() {
       setView('read');
       setAnswers({});
       setQuizResult(null);
+      setReadAloudResult(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function startReadAloud() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.start(100);
+      mediaRef.current = mr;
+      startTimeRef.current = Date.now();
+      setRecording(true);
+    } catch {
+      alert('Microphone access denied.');
+    }
+  }
+
+  async function stopReadAloud() {
+    const mr = mediaRef.current;
+    if (!mr) return;
+    setRecording(false);
+    setReadAloudProcessing(true);
+    await new Promise<void>(resolve => { mr.onstop = () => resolve(); mr.stop(); });
+    mr.stream.getTracks().forEach(t => t.stop());
+    const elapsed = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
+    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+    try {
+      const res: any = await readingApi.submitReadAloud(detail!.id, blob, elapsed);
+      setReadAloudResult(res);
+      if (res.xpAward > 0) {
+        await gamificationApi.awardXp(res.xpAward, 'read_aloud', `read-aloud-${detail!.id}-${Date.now()}`).catch(() => null);
+      }
+    } catch {
+      setReadAloudResult({ fluencyScore: 0, pronunciationAccuracy: 0, wpm: 0, xpAward: 0, transcribed: '' });
+    } finally {
+      setReadAloudProcessing(false);
     }
   }
 
@@ -88,6 +138,27 @@ export default function ReadingPage() {
         <h2 style={s.title}>{detail.title}</h2>
       </div>
       <div style={s.levelChip}>{detail.level} · {detail.wordCount} words</div>
+
+      {/* Read-aloud section */}
+      <div style={s.readAloudCard}>
+        <p style={s.readAloudLabel}>🎤 Read Aloud</p>
+        {readAloudResult ? (
+          <div style={s.readAloudResult}>
+            <span style={{ ...s.readAloudScore, color: readAloudResult.fluencyScore >= 60 ? '#16a34a' : '#dc2626' }}>
+              {readAloudResult.fluencyScore}/100
+            </span>
+            <span style={s.readAloudMeta}>{readAloudResult.wpm} WPM · {readAloudResult.pronunciationAccuracy}% accuracy</span>
+            {readAloudResult.xpAward > 0 && <span style={s.readAloudXp}>+{readAloudResult.xpAward} XP</span>}
+            <button style={s.readAloudBtn} onClick={() => setReadAloudResult(null)}>Try Again</button>
+          </div>
+        ) : readAloudProcessing ? (
+          <div style={s.readAloudProcessing}>⏳ Analyzing...</div>
+        ) : recording ? (
+          <button style={{ ...s.readAloudBtn, background: '#dc2626' }} onClick={stopReadAloud}>⏹ Stop Recording</button>
+        ) : (
+          <button style={s.readAloudBtn} onClick={startReadAloud}>🎤 Start Recording</button>
+        )}
+      </div>
 
       <div style={s.passageCard}>
         <p style={s.marathiText}>{renderClickableText(detail.contentMarathi)}</p>
@@ -248,6 +319,14 @@ const s: Record<string, React.CSSProperties> = {
   optionBtn: { display: 'block', width: '100%', textAlign: 'left', background: '#f8f9fa', border: '2px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: 14, cursor: 'pointer', marginBottom: 8, color: '#333' },
   optionSelected: { background: '#fff3e0', borderColor: '#FF6B35', color: '#FF6B35', fontWeight: 600 },
   textInput: { width: '100%', border: '2px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: 14, outline: 'none', boxSizing: 'border-box' },
+  readAloudCard: { background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 14, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+  readAloudLabel: { fontSize: 13, fontWeight: 700, color: '#0369a1', margin: 0, flexShrink: 0 },
+  readAloudResult: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1 },
+  readAloudScore: { fontSize: 20, fontWeight: 800 },
+  readAloudMeta: { fontSize: 12, color: '#555' },
+  readAloudXp: { background: '#dcfce7', color: '#16a34a', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 },
+  readAloudBtn: { background: '#0369a1', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  readAloudProcessing: { fontSize: 13, color: '#0369a1', fontStyle: 'italic' },
   resultHero: { textAlign: 'center', padding: '40px 20px 32px', background: '#fff', borderRadius: 20, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   resultScore: { fontSize: 72, fontWeight: 800, color: '#FF6B35' },
   resultScoreLabel: { fontSize: 20, color: '#888', marginBottom: 8 },

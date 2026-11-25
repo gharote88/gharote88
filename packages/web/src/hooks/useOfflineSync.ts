@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 const DB_NAME = 'marathi-sync-queue';
 const STORE = 'pending';
@@ -53,19 +54,60 @@ async function removeItem(id: string): Promise<void> {
   });
 }
 
+/** Only replay requests to our own API origin — blocks SSRF via poisoned queue entries */
+function isSafeQueueUrl(url: string): boolean {
+  try {
+    // Reject protocol-relative URLs and anything that doesn't start with http(s)://
+    if (!/^https?:\/\//i.test(url)) return false;
+    const parsed = new URL(url);
+    // Enforce https-only in production; allow http only on localhost
+    const isLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    if (parsed.protocol !== 'https:' && !isLocalhost) return false;
+    // Must target the same origin as the page (our Vercel API)
+    if (parsed.origin !== window.location.origin) return false;
+    // Must be an /api/ path — never replay arbitrary same-origin paths
+    if (!parsed.pathname.startsWith('/api/')) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function replayQueue(): Promise<number> {
   const items = await dequeueAll();
   let replayed = 0;
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? null;
   for (const item of items) {
+    // Skip any queue entry whose URL doesn't point to our own origin
+    if (!isSafeQueueUrl(item.url)) {
+      await removeItem(item.id);
+      continue;
+    }
     try {
-      const token = localStorage.getItem('accessToken');
+      // Validate body is well-formed JSON before replaying — prevents XSS via stored malicious payloads
+      let safeBody: string;
+      try {
+        safeBody = JSON.stringify(JSON.parse(item.body));
+      } catch {
+        await removeItem(item.id);
+        continue;
+      }
+      // Sanitize method to a known-safe set
+      const safeMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(item.method.toUpperCase())
+        ? item.method.toUpperCase()
+        : null;
+      if (!safeMethod) {
+        await removeItem(item.id);
+        continue;
+      }
       const res = await fetch(item.url, {
-        method: item.method,
+        method: safeMethod,
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: item.body,
+        body: safeBody,
       });
       // Remove from queue on success or 4xx (non-retryable)
       if (res.ok || (res.status >= 400 && res.status < 500)) {

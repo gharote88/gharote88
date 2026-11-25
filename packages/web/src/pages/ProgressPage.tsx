@@ -23,6 +23,21 @@ export default function ProgressPage() {
     }).finally(() => setLoading(false));
   }, []);
 
+  const [freezing, setFreezing] = useState(false);
+
+  async function useFreeze() {
+    if (freezing || !streak?.streakFreezeAvailable) return;
+    setFreezing(true);
+    try {
+      const res: any = await gamificationApi.useStreakFreeze();
+      setStreak((s: any) => ({ ...s, streakFreezeAvailable: res.streakFreezeAvailable }));
+    } catch {
+      // non-fatal
+    } finally {
+      setFreezing(false);
+    }
+  }
+
   if (loading) return <div style={s.loading}>Loading...</div>;
 
   const earned = badges.filter(b => b.earned);
@@ -74,6 +89,14 @@ export default function ProgressPage() {
           <span style={s.streakFire}>🔥</span>
           <span style={s.streakVal}>{streak?.currentStreak ?? 0} day streak</span>
           <span style={s.streakBest}>Best: {streak?.longestStreak ?? 0}</span>
+          <button
+            style={{ ...s.freezeBtn, ...(streak?.streakFreezeAvailable ? {} : s.freezeBtnUsed) }}
+            onClick={useFreeze}
+            disabled={!streak?.streakFreezeAvailable || freezing}
+            title={streak?.streakFreezeAvailable ? 'Use streak freeze to protect your streak for 1 missed day' : 'Freeze used this week'}
+          >
+            {streak?.streakFreezeAvailable ? '🧊 Freeze' : '🧊 Used'}
+          </button>
         </div>
       </div>
 
@@ -180,6 +203,8 @@ const s: Record<string, React.CSSProperties> = {
   badgeName: { fontSize: 11, fontWeight: 600, color: '#444', textAlign: 'center' },
   badgeProgressBg: { width: '100%', height: 4, background: '#f0f0f0', borderRadius: 2, overflow: 'hidden', marginTop: 4 },
   badgeProgressFill: { height: '100%', background: '#FF6B35', borderRadius: 2 },
+  freezeBtn: { background: '#e0f2fe', color: '#0369a1', border: 'none', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 },
+  freezeBtnUsed: { background: '#f0f0f0', color: '#aaa', cursor: 'not-allowed' },
   ctaCard: { background: '#fff', borderRadius: 16, padding: '16px 20px', display: 'flex', alignItems: 'center', cursor: 'pointer', border: '2px solid #FF6B35', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   ctaLabel: { fontSize: 11, color: '#FF6B35', fontWeight: 700, textTransform: 'uppercase', margin: '0 0 4px' },
   ctaTitle: { fontSize: 16, fontWeight: 700, color: '#1a1a2e', margin: 0 },

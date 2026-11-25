@@ -6,6 +6,22 @@ import BottomNav from '../components/BottomNav';
 
 const RANK_EMOJI: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
+/** COPPA: under-13 entries show first name + last initial only, no avatar */
+function safeDisplayName(entry: any, isMe: boolean): string {
+  if (isMe) return 'You';
+  const name: string = entry.displayName ?? entry.name ?? 'User';
+  if (entry.under13) {
+    const parts = name.trim().split(' ');
+    return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0];
+  }
+  return name;
+}
+
+function safeAvatar(entry: any): string | null {
+  // Never show avatar for under-13 users per COPPA
+  return entry.under13 ? null : (entry.avatarUrl || null);
+}
+
 export default function LeaderboardPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -38,8 +54,11 @@ export default function LeaderboardPage() {
             return (
               <div key={entry.userId ?? i} style={{ ...s.row, ...(isMe ? s.rowMe : {}) }}>
                 <span style={s.rank}>{RANK_EMOJI[rank] ?? rank}</span>
-                <img src={entry.avatarUrl || '/avatar-default.png'} alt="" style={s.avatar} />
-                <span style={s.name}>{isMe ? 'You' : (entry.displayName ?? entry.name ?? 'User')}</span>
+                {safeAvatar(entry)
+                  ? <img src={safeAvatar(entry)!} alt="" style={s.avatar} />
+                  : <div style={{ ...s.avatar, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>👤</div>
+                }
+                <span style={s.name}>{safeDisplayName(entry, isMe)}</span>
                 <span style={s.xp}>{entry.weeklyXp ?? entry.xp ?? 0} XP</span>
               </div>
             );

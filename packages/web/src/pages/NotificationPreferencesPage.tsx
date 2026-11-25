@@ -35,7 +35,7 @@ export default function NotificationPreferencesPage() {
   useEffect(() => {
     // Check current permission state
     if ('Notification' in window) setPermissionState(Notification.permission);
-    setPushEnabled(!!localStorage.getItem('pushToken'));
+    setPushEnabled(!!localStorage.getItem('pushRegistered'));
 
     notificationsApi.preferences().then((res: any) => {
       setPrefs(p => ({ ...p, ...res }));

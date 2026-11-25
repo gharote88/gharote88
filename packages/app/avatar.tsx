@@ -4,25 +4,49 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@marathi-learning/shared';
+import type { AvatarCategory } from '@marathi-learning/shared';
 
-const CATEGORIES = ['hair', 'outfit', 'accessory', 'background'];
+const CATEGORIES: AvatarCategory[] = ['hair', 'outfit', 'accessory', 'background'];
+
+const ALLOWED_AVATAR_PATHS = [
+  '/api/profile/avatar',
+  '/api/profile/avatar?action=equip',
+  '/api/profile/avatar?action=unlock',
+] as const;
+type AllowedAvatarPath = typeof ALLOWED_AVATAR_PATHS[number];
+
+interface AvatarItem {
+  id: string;
+  name: string;
+  emoji: string;
+  category: AvatarCategory;
+  unlocked: boolean;
+  xpCost: number;
+}
+
+interface AvatarData {
+  equippedItems: string[];
+  availableItems: AvatarItem[];
+  availableXp: number;
+}
 
 export default function AvatarScreen() {
   const router = useRouter();
-  const [avatarData, setAvatarData] = useState<any>(null);
-  const [category, setCategory] = useState('hair');
+  const [avatarData, setAvatarData] = useState<AvatarData | null>(null);
+  const [category, setCategory] = useState<AvatarCategory>('hair');
   const [loading, setLoading] = useState(true);
   const [unlocking, setUnlocking] = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
 
-  async function api(path: string, opts?: RequestInit) {
+  async function api(path: AllowedAvatarPath, opts?: RequestInit) {
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}${path}`, {
+    const base = process.env.EXPO_PUBLIC_API_BASE_URL;
+    const res = await fetch(`${base}${path}`, {
       ...opts,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, ...(opts?.headers ?? {}) },
     });
-    return res.json();
+    return res.json() as Promise<AvatarData>;
   }
 
   async function load() {
@@ -41,13 +65,13 @@ export default function AvatarScreen() {
       if (idx >= 0) equipped.splice(idx, 1);
       else equipped.push(itemId);
       await api('/api/profile/avatar?action=equip', { method: 'PUT', body: JSON.stringify({ equippedItems: equipped }) });
-      setAvatarData((d: any) => ({ ...d, equippedItems: equipped }));
+      setAvatarData((d: AvatarData | null) => d ? { ...d, equippedItems: equipped } : d);
     } catch {
       Alert.alert('Error', 'Failed to update avatar.');
     }
   }
 
-  async function unlock(item: any) {
+  async function unlock(item: AvatarItem) {
     if (item.unlocked) { equip(item.id); return; }
     Alert.alert('Unlock Item', `Spend ${item.xpCost} XP to unlock "${item.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -69,7 +93,7 @@ export default function AvatarScreen() {
 
   if (loading) return <SafeAreaView style={s.container}><View style={s.center}><ActivityIndicator size="large" color="#FF6B35" /></View></SafeAreaView>;
 
-  const items = (avatarData?.availableItems ?? []).filter((i: any) => i.category === category);
+  const items = (avatarData?.availableItems ?? []).filter(i => i.category === category);
   const equipped = avatarData?.equippedItems ?? [];
 
   return (

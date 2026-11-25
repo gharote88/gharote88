@@ -90,9 +90,17 @@ export default function Dashboard() {
           <Text style={styles.actionEmoji}>🎤</Text>
           <Text style={styles.actionLabel}>Practice</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/badges')}>
+          <Text style={styles.actionEmoji}>🏅</Text>
+          <Text style={styles.actionLabel}>Badges</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/profile')}>
           <Text style={styles.actionEmoji}>👤</Text>
           <Text style={styles.actionLabel}>Profile</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/mini-games')}>
+          <Text style={styles.actionEmoji}>🎮</Text>
+          <Text style={styles.actionLabel}>Mini Games</Text>
         </TouchableOpacity>
       </View>
 

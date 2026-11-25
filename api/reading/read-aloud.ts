@@ -2,10 +2,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { adminClient, getUserId } from '../_lib/supabase';
 import { pronunciationScore } from '../_lib/pronunciation';
 
-const HF_API_URL = 'https://api-inference.huggingface.co/models/vasista22/whisper-marathi';
+// Compile-time constants — never derived from user input or environment variables
+const HF_API_HOST = 'api-inference.huggingface.co' as const;
+const HF_API_URL  = `https://${HF_API_HOST}/models/vasista22/whisper-marathi` as const;
 
 async function transcribeAudio(buffer: Buffer): Promise<string> {
-  // Primary: Hugging Face vasista22/whisper-marathi
+  // Primary: Hugging Face vasista22/whisper-marathi (hardcoded host, no dynamic URL)
   try {
     const res = await fetch(HF_API_URL, {
       method: 'POST',
@@ -69,8 +71,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }, { onConflict: 'user_id,passage_id' });
 
     return res.status(200).json({ fluencyScore, pronunciationAccuracy: pronunciationAcc, wpm, xpAward, transcribed });
-  } catch (err: any) {
-    const status = err.message?.includes('token') ? 401 : 500;
-    return res.status(status).json({ error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    const status = message.includes('token') ? 401 : 500;
+    return res.status(status).json({ error: message });
   }
 }

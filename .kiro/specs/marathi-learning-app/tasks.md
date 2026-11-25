@@ -556,3 +556,63 @@ Each task is self-contained and completable in 1–3 days. Tasks within a phase 
   - Leaderboard with rank/avatar/XP, current user highlight, privacy for under-13
   - Daily challenge card with completion flow and XP award
   - Create `leaderboard.tsx` and `challenge.tsx` routes and register in `_layout.tsx`
+
+---
+
+### Phase 15: Web PWA Gap Fixes
+
+- [x] 49. Fix API client endpoint mismatches
+  - Correct `progressApi.save` path from `/api/progress/save` to `/api/progress`
+  - Correct `gamificationApi.xp/streak/badges` paths to `/api/gamification/xp`, `/api/gamification/streak`, `/api/gamification/badges`
+  - Add `gamificationApi.useStreakFreeze()` calling `POST /api/gamification/streak/freeze`
+  - Add `journeyApi.checkpoint(id)` calling `GET /api/journey/checkpoints/:id`
+  - Add `authApi.unlinkChild(childId)` calling `POST /api/auth/unlink-child`
+  - Fix `funFactsApi.submitQuiz` to pass `factId` to the real API
+
+- [x] 50. Add new API endpoints
+  - Create `POST /api/gamification/streak/freeze` handler (`api/gamification/streak/freeze.ts`)
+  - Create `POST /api/auth/unlink-child` handler (`api/auth/unlink-child.ts`)
+  - Make `api/gamification/xp/get.ts` a unified GET+POST handler routing to `award.ts` on POST
+  - Make `api/gamification/streak/get.ts` a unified GET+POST handler routing to `record.ts` on POST
+  - Add `vercel.json` rewrites for all new and corrected paths
+
+- [x] 51. Add ErrorBoundary and PWAUpdateBanner components
+  - Create `ErrorBoundary.tsx` class component catching render errors with reload CTA
+  - Create `PWAUpdateBanner.tsx` using `useRegisterSW` from `virtual:pwa-register/react` to show in-app update prompt
+  - Wrap all routes in `App.tsx` with `ErrorBoundary`
+  - Mount `PWAUpdateBanner` in `App.tsx`
+
+- [x] 52. Fix auth callback race condition
+  - Replace `<Navigate to="/dashboard">` on `/auth/callback` with an `AuthCallback` component that waits for `initialized` before redirecting
+  - Add a proper 404 `NotFoundPage` replacing the silent catch-all redirect
+
+- [x] 53. Add read-aloud recording UI to ReadingPage
+  - Add `MediaRecorder`-based recording controls to the passage read view
+  - Wire `readingApi.submitReadAloud` with elapsed time measurement
+  - Display fluency score, WPM, pronunciation accuracy, and XP award after submission
+  - Call `readingApi.progress()` on mount to load reading progress stats
+
+- [x] 54. Wire real fun facts quiz API
+  - Replace client-side quiz answer evaluation with `funFactsApi.submitQuiz` call
+  - XP award now driven by server response `xpAward` field
+
+- [x] 55. Fix parent dashboard unlink and COPPA enforcement
+  - `unlinkChild()` now calls `authApi.unlinkChild(childId)` before removing from local state
+  - `LeaderboardPage` applies `safeDisplayName()` and `safeAvatar()` helpers enforcing COPPA rules client-side
+
+- [x] 56. Add streak freeze UI to ProgressPage
+  - Show freeze button in streak row; disabled and labeled "Used" when `streakFreezeAvailable` is false
+  - Button calls `gamificationApi.useStreakFreeze()` and updates local streak state
+
+- [x] 57. Wire offline queue into API client
+  - Import `enqueueRequest` from `useOfflineSync` into `api/client.ts`
+  - All POST/PUT calls when `!navigator.onLine` are automatically queued to IndexedDB and replayed on reconnect
+  - GET requests are not queued (read-only, no side effects)
+
+- [x] 58. Add path aliases
+  - Add `@/*` → `src/*` alias to `packages/web/tsconfig.json` (`baseUrl` + `paths`)
+  - Add matching `resolve.alias` to `packages/web/vite.config.ts`
+
+- [x] 59. Document VITE_VAPID_PUBLIC_KEY
+  - Add `VITE_VAPID_PUBLIC_KEY` to `packages/web/.env` with empty placeholder
+  - Add to README web env setup section with generation instructions

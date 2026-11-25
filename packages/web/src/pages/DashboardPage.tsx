@@ -136,6 +136,21 @@ export default function DashboardPage() {
         <span>→</span>
       </div>
 
+      {/* Quick links row */}
+      <div style={styles.quickLinks}>
+        {[
+          { icon: '🗺️', label: 'Journey', path: '/journey' },
+          { icon: '🎮', label: 'Mini Games', path: '/mini-games' },
+          { icon: '📖', label: 'Reading', path: '/reading' },
+          { icon: '📊', label: 'Progress', path: '/progress' },
+        ].map(({ icon, label, path }) => (
+          <div key={path} style={styles.quickLink} onClick={() => navigate(path)}>
+            <span style={styles.quickLinkIcon}>{icon}</span>
+            <span style={styles.quickLinkLabel}>{label}</span>
+          </div>
+        ))}
+      </div>
+
       <BottomNav />
     </div>
   );
@@ -177,5 +192,7 @@ const styles: Record<string, React.CSSProperties> = {
   factMarathi: { fontSize: 18, fontWeight: 600, color: '#1a1a2e', margin: '0 0 6px', lineHeight: 1.5, fontFamily: 'var(--font-devanagari)' },
   factEnglish: { fontSize: 13, color: '#666', margin: 0, lineHeight: 1.5 },
   leaderboardLink: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', borderRadius: 12, padding: '14px 16px', marginTop: 12, cursor: 'pointer', fontWeight: 600, fontSize: 15, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
-
-};
+  quickLinks: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 12 },
+  quickLink: { background: '#fff', borderRadius: 12, padding: '12px 4px', textAlign: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: 4 },
+  quickLinkIcon: { fontSize: 22 },
+  quickLinkLabel: { fontSize: 10, color: '#666', fontWeight: 600 },

@@ -2,14 +2,41 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import Constants from 'expo-constants';
+import { OneSignal } from 'react-native-onesignal';
 import { onAuthStateChange, getUserProfile } from '@marathi-learning/shared';
 import type { AuthUser } from '@marathi-learning/shared';
+import { useOfflineCache } from './src/hooks/useOfflineCache';
+
+SplashScreen.preventAutoHideAsync();
+
+// Initialise OneSignal once at module load — safe to call before render
+const ONESIGNAL_APP_ID: string = Constants.expoConfig?.extra?.oneSignalAppId ?? '';
+if (ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== 'ONESIGNAL_APP_ID_PLACEHOLDER') {
+  OneSignal.initialize(ONESIGNAL_APP_ID);
+  OneSignal.Notifications.requestPermission(false);
+}
 
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
+  const [fontsLoaded] = useFonts({
+    'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
+    'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
+    'OpenSans-Regular': require('./assets/fonts/OpenSans-Regular.ttf'),
+    'NotoSansDevanagari-Regular': require('./assets/fonts/NotoSansDevanagari-Regular.ttf'),
+  });
+
+  useOfflineCache();
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
 
   useEffect(() => {
     const unsub = onAuthStateChange(async (authUser) => {
@@ -37,7 +64,7 @@ export default function RootLayout() {
     }
   }, [user, needsOnboarding, segments]);
 
-  if (user === undefined) {
+  if (user === undefined || !fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FF6B35' }}>
         <ActivityIndicator size="large" color="#FFFFFF" />
@@ -65,6 +92,8 @@ export default function RootLayout() {
         <Stack.Screen name="challenge" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="parent" />
+        <Stack.Screen name="badges" />
+        <Stack.Screen name="mini-games" />
       </Stack>
     </>
   );

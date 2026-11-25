@@ -72,8 +72,13 @@ export default function FunFactsPage() {
     if (quizDone) return;
     setQuizAnswer(option);
     setQuizDone(true);
-    if (option === quiz?.correct) {
-      await gamificationApi.awardXp(10, 'fun_fact_quiz', `ffquiz-${quiz.factId}-${Date.now()}`).catch(() => null);
+    try {
+      const res: any = await funFactsApi.submitQuiz(quiz.factId, option, quiz.correct);
+      if (res.isCorrect && res.xpAward > 0) {
+        await gamificationApi.awardXp(res.xpAward, 'fun_fact_quiz', `ffquiz-${quiz.factId}-${Date.now()}`).catch(() => null);
+      }
+    } catch {
+      // non-fatal
     }
   }
 

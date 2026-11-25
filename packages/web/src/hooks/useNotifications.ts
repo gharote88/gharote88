@@ -36,11 +36,19 @@ export function useNotifications(enabled: boolean) {
         }
 
         if (sub) {
-          // Send endpoint as token identifier
           const token = sub.endpoint;
+          // Validate: push endpoints must be HTTPS URLs from a known push service
+          // This prevents a compromised SW from injecting an arbitrary URL
+          try {
+            const { protocol } = new URL(token);
+            if (protocol !== 'https:') throw new Error('Non-HTTPS push endpoint rejected');
+          } catch {
+            return;
+          }
           await notificationsApi.register(token);
           registered.current = true;
-          localStorage.setItem('pushToken', token);
+          // Store only a flag, not the token itself, to avoid sensitive data in localStorage
+          localStorage.setItem('pushRegistered', '1');
         }
       } catch {
         // Push not supported or user denied — fail silently

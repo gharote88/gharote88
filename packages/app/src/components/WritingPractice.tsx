@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { Svg, Path } from 'react-native-svg';
+import { supabase } from '../supabase';
 
 const { width, height } = Dimensions.get('window');
 
@@ -135,65 +136,28 @@ const WritingPractice: React.FC<WritingPracticeProps> = ({ exercise, onComplete,
       Alert.alert('No Writing', 'Please write something before evaluating');
       return;
     }
-
     try {
-      // Calculate score based on stroke analysis
-      const calculatedScore = calculateWritingScore();
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/writing/evaluate`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({
+            characterId: exercise.id,
+            userStrokes: strokes,
+            referenceId: `writing_${exercise.id}_${Date.now()}`,
+          }),
+        }
+      );
+      const data = await res.json();
+      const calculatedScore: number = data.score ?? 0;
       setScore(calculatedScore);
-      setFeedback(generateWritingFeedback(calculatedScore));
+      setFeedback(data.feedback ?? generateWritingFeedback(calculatedScore));
       onComplete(calculatedScore);
     } catch (error) {
       console.error('Error evaluating writing:', error);
       Alert.alert('Error', 'Failed to evaluate writing');
-    }
-  };
-
-  const calculateWritingScore = (): number => {
-    // Simplified scoring algorithm
-    // In production, use more sophisticated handwriting recognition
-    
-    const expectedStrokes = getExpectedStrokeCount(exercise.targetText);
-    const actualStrokes = strokes.length;
-    
-    // Score based on stroke count similarity
-    const strokeScore = Math.max(0, 100 - Math.abs(expectedStrokes - actualStrokes) * 10);
-    
-    // Score based on stroke complexity
-    const complexityScore = calculateComplexityScore();
-    
-    // Average the scores
-    return Math.round((strokeScore + complexityScore) / 2);
-  };
-
-  const getExpectedStrokeCount = (text: string): number => {
-    // Simplified stroke count estimation
-    // In production, use actual Devanagari stroke data
-    if (exercise.type === 'character') {
-      return 2; // Average strokes per character
-    } else if (exercise.type === 'word') {
-      return text.length * 2; // Approximate
-    } else {
-      return text.length * 2 + 5; // Add some for spaces
-    }
-  };
-
-  const calculateComplexityScore = (): number => {
-    if (strokes.length === 0) return 0;
-    
-    let totalPoints = 0;
-    strokes.forEach(stroke => {
-      totalPoints += stroke.points.length;
-    });
-    
-    const averagePointsPerStroke = totalPoints / strokes.length;
-    
-    // Ideal range is 10-30 points per stroke
-    if (averagePointsPerStroke >= 10 && averagePointsPerStroke <= 30) {
-      return 100;
-    } else if (averagePointsPerStroke >= 5 && averagePointsPerStroke <= 40) {
-      return 80;
-    } else {
-      return 60;
     }
   };
 
@@ -224,49 +188,21 @@ const WritingPractice: React.FC<WritingPracticeProps> = ({ exercise, onComplete,
 
   const renderStroke = (stroke: Stroke, index: number) => {
     if (stroke.points.length < 2) return null;
-
-    const path = stroke.points.map((point, i) => {
-      if (i === 0) {
-        return `M ${point.x} ${point.y}`;
-      }
-      return `L ${point.x} ${point.y}`;
-    }).join(' ');
-
+    const d = stroke.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
     return (
-      <svg key={index} height="100%" width="100%" style={styles.svg}>
-        <path
-          d={path}
-          stroke="#4CAF50"
-          strokeWidth="3"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <Svg key={index} height="100%" width="100%" style={styles.svg}>
+        <Path d={d} stroke="#4CAF50" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
     );
   };
 
   const renderCurrentStroke = () => {
     if (currentStroke.length < 2) return null;
-
-    const path = currentStroke.map((point, i) => {
-      if (i === 0) {
-        return `M ${point.x} ${point.y}`;
-      }
-      return `L ${point.x} ${point.y}`;
-    }).join(' ');
-
+    const d = currentStroke.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
     return (
-      <svg height="100%" width="100%" style={styles.svg}>
-        <path
-          d={path}
-          stroke="#4CAF50"
-          strokeWidth="3"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <Svg height="100%" width="100%" style={styles.svg}>
+        <Path d={d} stroke="#4CAF50" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
     );
   };
 
