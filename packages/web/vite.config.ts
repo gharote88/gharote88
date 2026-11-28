@@ -7,10 +7,21 @@ export default defineConfig({
   resolve: {
     alias: { '@': resolve(__dirname, 'src') },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'prompt',
+      devOptions: {
+        enabled: false,
+      },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'Marathi Learning App',

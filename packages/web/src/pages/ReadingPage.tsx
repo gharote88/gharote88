@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { readingApi, gamificationApi } from '../api/client';
+import { 
+  MicrophoneIcon, 
+  StopIcon, 
+  HourglassMediumIcon, 
+  ArrowLeftIcon, 
+  ArrowRightIcon
+} from '@phosphor-icons/react';
 
 type Passage = { id: string; title: string; level: string; wordCount: number; estimatedMinutes: number };
 type VocabWord = { word: string; meaning: string; transliteration: string; audioUrl?: string };
@@ -134,14 +141,14 @@ export default function ReadingPage() {
   if (view === 'read' && detail) return (
     <div style={s.page}>
       <div style={s.header}>
-        <button style={s.back} onClick={() => setView('list')}>← Back</button>
+        <button style={s.back} onClick={() => setView('list')}><ArrowLeftIcon size={20} weight="bold" /></button>
         <h2 style={s.title}>{detail.title}</h2>
       </div>
       <div style={s.levelChip}>{detail.level} · {detail.wordCount} words</div>
 
       {/* Read-aloud section */}
       <div style={s.readAloudCard}>
-        <p style={s.readAloudLabel}>🎤 Read Aloud</p>
+        <p style={s.readAloudLabel}><MicrophoneIcon size={13} weight="fill" style={{ verticalAlign: 'middle', marginRight: 4 }} />Read Aloud</p>
         {readAloudResult ? (
           <div style={s.readAloudResult}>
             <span style={{ ...s.readAloudScore, color: readAloudResult.fluencyScore >= 60 ? '#16a34a' : '#dc2626' }}>
@@ -152,11 +159,11 @@ export default function ReadingPage() {
             <button style={s.readAloudBtn} onClick={() => setReadAloudResult(null)}>Try Again</button>
           </div>
         ) : readAloudProcessing ? (
-          <div style={s.readAloudProcessing}>⏳ Analyzing...</div>
+          <div style={s.readAloudProcessing}><HourglassMediumIcon size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />Analyzing...</div>
         ) : recording ? (
-          <button style={{ ...s.readAloudBtn, background: '#dc2626' }} onClick={stopReadAloud}>⏹ Stop Recording</button>
+          <button style={{ ...s.readAloudBtn, background: '#dc2626' }} onClick={stopReadAloud}><StopIcon size={16} weight="fill" style={{ verticalAlign: 'middle', marginRight: 4 }} />Stop Recording</button>
         ) : (
-          <button style={s.readAloudBtn} onClick={startReadAloud}>🎤 Start Recording</button>
+          <button style={s.readAloudBtn} onClick={startReadAloud}><MicrophoneIcon size={16} weight="fill" style={{ verticalAlign: 'middle', marginRight: 4 }} />Start Recording</button>
         )}
       </div>
 
@@ -196,7 +203,7 @@ export default function ReadingPage() {
   if (view === 'quiz' && detail) return (
     <div style={s.page}>
       <div style={s.header}>
-        <button style={s.back} onClick={() => setView('read')}>← Back</button>
+        <button style={s.back} onClick={() => setView('read')}><ArrowLeftIcon size={20} weight="bold" /></button>
         <h2 style={s.title}>Comprehension Quiz</h2>
       </div>
       {detail.questions.map((q, qi) => (
@@ -245,7 +252,7 @@ export default function ReadingPage() {
       <div style={s.resultHero}>
         <div style={s.resultScore}>{quizResult.score ?? 0}</div>
         <div style={s.resultScoreLabel}>/100</div>
-        <div style={s.resultMsg}>{(quizResult.score ?? 0) >= 70 ? '🎉 Great job!' : '📖 Keep reading!'}</div>
+        <div style={s.resultMsg}>{(quizResult.score ?? 0) >= 70 ? 'Great job!' : 'Keep reading!'}</div>
         <div style={s.xpEarned}>+{(quizResult.score ?? 0) >= 60 ? 50 : 30} XP earned</div>
       </div>
       <button style={s.btnPrimary} onClick={() => setView('list')}>Back to Passages</button>
@@ -256,7 +263,7 @@ export default function ReadingPage() {
   return (
     <div style={s.page}>
       <div style={s.header}>
-        <button style={s.back} onClick={() => navigate('/dashboard')}>← Back</button>
+        <button style={s.back} onClick={() => navigate('/dashboard')}><ArrowLeftIcon size={20} weight="bold" /></button>
         <h2 style={s.title}>Reading Practice</h2>
       </div>
 
@@ -279,7 +286,7 @@ export default function ReadingPage() {
               <div style={s.passageTitle}>{p.title}</div>
               <div style={s.passageMeta}>{p.level} · {p.wordCount} words · ~{p.estimatedMinutes} min</div>
             </div>
-            <span style={s.arrow}>→</span>
+            <ArrowRightIcon size={18} color="var(--color-teal)" />
           </div>
         ))
       )}
@@ -288,51 +295,56 @@ export default function ReadingPage() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 480, margin: '0 auto', padding: '24px 16px 40px', fontFamily: 'system-ui, sans-serif', background: '#f8f9fa', minHeight: '100vh' },
+  page: { maxWidth: 480, margin: '0 auto', padding: '52px 24px 48px', fontFamily: 'var(--font-ui)', background: 'var(--color-bg)', minHeight: '100vh' },
   header: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 },
-  back: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#FF6B35', fontWeight: 600, padding: 0 },
-  title: { flex: 1, fontSize: 20, fontWeight: 700, margin: 0, color: '#1a1a2e' },
+  back: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--color-slate)', fontWeight: 700, padding: 0, lineHeight: 1 },
+  title: { flex: 1, fontSize: 20, fontWeight: 700, margin: 0, color: 'var(--color-slate)' },
   tabs: { display: 'flex', gap: 8, marginBottom: 20 },
-  tab: { flex: 1, padding: '8px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#666' },
-  tabActive: { background: '#FF6B35', color: '#fff', border: '1px solid #FF6B35' },
-  passageRow: { background: '#fff', borderRadius: 14, padding: '16px', marginBottom: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', cursor: 'pointer' },
-  passageTitle: { fontSize: 16, fontWeight: 700, color: '#1a1a2e', marginBottom: 4 },
-  passageMeta: { fontSize: 12, color: '#888', textTransform: 'capitalize' },
-  arrow: { fontSize: 20, color: '#FF6B35', marginLeft: 'auto' },
-  levelChip: { display: 'inline-block', background: '#fff3e0', color: '#FF6B35', borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 600, marginBottom: 16, textTransform: 'capitalize' },
-  passageCard: { background: '#fff', borderRadius: 16, padding: '20px', marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  marathiText: { fontSize: 20, lineHeight: 1.8, color: '#1a1a2e', margin: '0 0 12px' },
-  englishText: { fontSize: 14, color: '#666', lineHeight: 1.6, margin: 0, borderTop: '1px solid #f0f0f0', paddingTop: 12 },
-  vocabWord: { background: '#fff3e0', borderRadius: 4, padding: '0 2px', cursor: 'pointer', textDecoration: 'underline dotted', color: '#FF6B35' },
-  vocabSection: { background: '#fff', borderRadius: 16, padding: '16px', marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  sectionLabel: { fontSize: 12, fontWeight: 700, color: '#888', textTransform: 'uppercase', margin: '0 0 10px' },
+  tab: { flex: 1, padding: '9px 4px', borderRadius: 18, border: '1.5px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)' },
+  tabActive: { background: 'var(--color-teal)', borderColor: 'var(--color-teal)', color: '#fff' },
+  // Passage list
+  passageRow: { background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '16px', marginBottom: 12, boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', cursor: 'pointer', border: '1px solid var(--color-border)' },
+  passageTitle: { fontSize: 16, fontWeight: 700, color: 'var(--color-slate)', marginBottom: 4 },
+  passageMeta: { fontSize: 12, color: 'var(--color-text-secondary)', textTransform: 'capitalize', margin: 0 },
+  // Reading view
+  levelChip: { display: 'inline-block', background: 'var(--color-teal-subtle)', color: 'var(--color-teal)', borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 600, marginBottom: 16, textTransform: 'capitalize' },
+  passageCard: { background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '20px', marginBottom: 16, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-border)' },
+  marathiText: { fontFamily: 'var(--font-devanagari)', fontSize: 20, lineHeight: 1.8, color: 'var(--color-text)', margin: '0 0 12px' },
+  englishText: { fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.6, margin: 0, borderTop: '1px solid var(--color-border)', paddingTop: 12 },
+  vocabWord: { background: 'var(--color-teal-subtle)', borderRadius: 4, padding: '0 3px', cursor: 'pointer', textDecoration: 'underline dotted', color: 'var(--color-teal)' },
+  vocabSection: { background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '16px', marginBottom: 16, boxShadow: 'var(--shadow-sm)' },
+  sectionLabel: { fontSize: 11, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', margin: '0 0 10px', letterSpacing: 0.5 },
   vocabChips: { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  vocabChip: { background: '#fff3e0', color: '#FF6B35', border: 'none', borderRadius: 20, padding: '5px 14px', fontSize: 14, cursor: 'pointer', fontWeight: 600 },
+  vocabChip: { background: 'var(--color-teal-subtle)', color: 'var(--color-teal)', border: 'none', borderRadius: 20, padding: '5px 14px', fontSize: 14, cursor: 'pointer', fontWeight: 600 },
+  // Vocab popup
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 },
-  popupCard: { background: '#fff', borderRadius: 20, padding: '28px 24px', maxWidth: 300, width: '90%', textAlign: 'center' },
-  popupWord: { fontSize: 36, fontWeight: 700, color: '#1a1a2e', marginBottom: 6 },
-  popupRoman: { fontSize: 16, color: '#888', marginBottom: 8 },
-  popupMeaning: { fontSize: 15, color: '#444', marginBottom: 20, lineHeight: 1.5 },
-  popupClose: { background: '#FF6B35', color: '#fff', border: 'none', borderRadius: 12, padding: '10px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
-  questionCard: { background: '#fff', borderRadius: 14, padding: '16px', marginBottom: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  questionText: { fontSize: 15, fontWeight: 600, color: '#1a1a2e', margin: '0 0 12px' },
-  optionBtn: { display: 'block', width: '100%', textAlign: 'left', background: '#f8f9fa', border: '2px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: 14, cursor: 'pointer', marginBottom: 8, color: '#333' },
-  optionSelected: { background: '#fff3e0', borderColor: '#FF6B35', color: '#FF6B35', fontWeight: 600 },
-  textInput: { width: '100%', border: '2px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: 14, outline: 'none', boxSizing: 'border-box' },
-  readAloudCard: { background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 14, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  readAloudLabel: { fontSize: 13, fontWeight: 700, color: '#0369a1', margin: 0, flexShrink: 0 },
+  popupCard: { background: 'var(--color-surface)', borderRadius: 20, padding: '28px 24px', maxWidth: 300, width: '90%', textAlign: 'center' },
+  popupWord: { fontFamily: 'var(--font-devanagari)', fontSize: 36, fontWeight: 700, color: 'var(--color-slate)', marginBottom: 6 },
+  popupRoman: { fontSize: 16, color: 'var(--color-muted)', marginBottom: 8 },
+  popupMeaning: { fontSize: 15, color: 'var(--color-text-secondary)', marginBottom: 20, lineHeight: 1.5 },
+  popupClose: { background: 'var(--color-teal)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2xl)', padding: '10px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
+  // Quiz
+  questionCard: { background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '16px', marginBottom: 12, boxShadow: 'var(--shadow-sm)' },
+  questionText: { fontSize: 15, fontWeight: 600, color: 'var(--color-slate)', margin: '0 0 12px' },
+  optionBtn: { display: 'block', width: '100%', textAlign: 'left', background: 'var(--color-bg)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: 14, cursor: 'pointer', marginBottom: 8, color: 'var(--color-text)' },
+  optionSelected: { background: 'var(--color-teal-subtle)', borderColor: 'var(--color-teal)', color: 'var(--color-teal)', fontWeight: 600 },
+  textInput: { width: '100%', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: 14, outline: 'none', boxSizing: 'border-box', background: 'var(--color-surface)', color: 'var(--color-text)' },
+  // Read aloud
+  readAloudCard: { background: 'var(--color-teal-subtle)', border: '1px solid var(--color-teal)', borderRadius: 'var(--radius-lg)', padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+  readAloudLabel: { fontSize: 13, fontWeight: 700, color: 'var(--color-teal)', margin: 0, flexShrink: 0 },
   readAloudResult: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1 },
   readAloudScore: { fontSize: 20, fontWeight: 800 },
-  readAloudMeta: { fontSize: 12, color: '#555' },
-  readAloudXp: { background: '#dcfce7', color: '#16a34a', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 },
-  readAloudBtn: { background: '#0369a1', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  readAloudProcessing: { fontSize: 13, color: '#0369a1', fontStyle: 'italic' },
-  resultHero: { textAlign: 'center', padding: '40px 20px 32px', background: '#fff', borderRadius: 20, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  resultScore: { fontSize: 72, fontWeight: 800, color: '#FF6B35' },
-  resultScoreLabel: { fontSize: 20, color: '#888', marginBottom: 8 },
-  resultMsg: { fontSize: 22, fontWeight: 700, color: '#1a1a2e', marginBottom: 8 },
-  xpEarned: { fontSize: 16, color: '#16a34a', fontWeight: 600 },
-  btnPrimary: { display: 'block', width: '100%', background: '#FF6B35', color: '#fff', border: 'none', borderRadius: 12, padding: '14px', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginBottom: 12 },
-  btnSecondary: { display: 'block', width: '100%', background: '#f0f0f0', color: '#333', border: 'none', borderRadius: 12, padding: '14px', fontSize: 16, fontWeight: 600, cursor: 'pointer' },
-  empty: { textAlign: 'center', color: '#888', marginTop: 60, fontSize: 16 },
+  readAloudMeta: { fontSize: 12, color: 'var(--color-text-secondary)' },
+  readAloudXp: { background: 'var(--color-success-subtle)', color: 'var(--color-success)', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700 },
+  readAloudBtn: { background: 'var(--color-teal)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  readAloudProcessing: { fontSize: 13, color: 'var(--color-teal)', fontStyle: 'italic' },
+  // Result screen
+  resultHero: { textAlign: 'center', padding: '40px 20px 32px', background: 'var(--color-surface)', borderRadius: 20, marginBottom: 16, boxShadow: 'var(--shadow-md)' },
+  resultScore: { fontSize: 72, fontWeight: 800, color: 'var(--color-teal)' },
+  resultScoreLabel: { fontSize: 20, color: 'var(--color-muted)', marginBottom: 8 },
+  resultMsg: { fontSize: 22, fontWeight: 700, color: 'var(--color-slate)', marginBottom: 8 },
+  xpEarned: { fontSize: 16, color: 'var(--color-success)', fontWeight: 600 },
+  btnPrimary: { display: 'block', width: '100%', background: 'var(--color-teal)', color: '#fff', border: 'none', borderRadius: 'var(--radius-2xl)', padding: '14px', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginBottom: 12 },
+  btnSecondary: { display: 'block', width: '100%', background: 'var(--color-surface)', color: 'var(--color-text-secondary)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-2xl)', padding: '14px', fontSize: 16, fontWeight: 600, cursor: 'pointer' },
+  empty: { textAlign: 'center', color: 'var(--color-muted)', marginTop: 60, fontSize: 16 },
 };

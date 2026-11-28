@@ -5,6 +5,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import PWAUpdateBanner from './components/PWAUpdateBanner';
 import OfflineBanner from './components/OfflineBanner';
 import LoginPage from './pages/LoginPage';
+import SplashPage from './pages/SplashPage';
+import OnboardingPage from './pages/OnboardingPage';
 import DashboardPage from './pages/DashboardPage';
 import LessonsPage from './pages/LessonsPage';
 import LessonDetailPage from './pages/LessonDetailPage';
@@ -37,7 +39,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 // Waits for Supabase to process the OAuth token before redirecting
 function AuthCallback() {
-  const { initialized, user } = useAuthStore();
+  const { initialized, user, onboardingComplete } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,10 +48,14 @@ function AuthCallback() {
     if (redirect) {
       sessionStorage.removeItem('postReauthRedirect');
       navigate(user ? redirect : '/login', { replace: true });
+    } else if (!user) {
+      navigate('/login', { replace: true });
+    } else if (!onboardingComplete) {
+      navigate('/onboarding', { replace: true });
     } else {
-      navigate(user ? '/dashboard' : '/login', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
-  }, [initialized, user]);
+  }, [initialized, user, onboardingComplete]);
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: 18, color: '#666' }}>
@@ -61,10 +67,10 @@ function AuthCallback() {
 function NotFoundPage() {
   const navigate = useNavigate();
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'system-ui', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'var(--font-sans)', gap: 16 }}>
       <div style={{ fontSize: 56 }}>🔍</div>
-      <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a2e', margin: 0 }}>Page not found</h2>
-      <button style={{ background: '#FF6B35', color: '#fff', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }} onClick={() => navigate('/dashboard')}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-slate)', margin: 0 }}>Page not found</h2>
+      <button style={{ background: 'var(--color-teal)', color: '#fff', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }} onClick={() => navigate('/dashboard')}>
         Go to Dashboard
       </button>
     </div>
@@ -83,6 +89,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/onboarding" element={<AuthGuard><OnboardingPage /></AuthGuard>} />
           <Route path="/dashboard" element={<AuthGuard><DashboardPage /></AuthGuard>} />
           <Route path="/lessons" element={<AuthGuard><LessonsPage /></AuthGuard>} />
           <Route path="/lessons/:id" element={<AuthGuard><LessonDetailPage /></AuthGuard>} />
@@ -99,7 +106,8 @@ export default function App() {
           <Route path="/challenge" element={<AuthGuard><ChallengePage /></AuthGuard>} />
           <Route path="/journey" element={<AuthGuard><JourneyPage /></AuthGuard>} />
           <Route path="/mini-games" element={<AuthGuard><MiniGamesPage /></AuthGuard>} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/profile" element={<Navigate to="/progress" replace />} />
+          <Route path="/" element={<SplashPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </ErrorBoundary>

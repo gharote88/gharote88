@@ -1,15 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { lessonsApi } from '../api/client';
+import BottomNav from '../components/BottomNav';
+import { MicrophoneIcon, PencilSimpleIcon, BookOpenIcon, GameControllerIcon, LockIcon, ArrowRightIcon } from '@phosphor-icons/react';
 
 const LEVELS = ['beginner', 'intermediate', 'advanced'] as const;
 type Level = typeof LEVELS[number];
 
-const LEVEL_COLORS: Record<Level, string> = {
-  beginner: '#4CAF50',
-  intermediate: '#FF9800',
-  advanced: '#F44336',
+const LEVEL_LABELS: Record<Level, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
 };
+
+const SKILLS = [
+  { Icon: MicrophoneIcon,   label: 'Speaking', sub: 'Pronunciation & conversation', bg: 'var(--color-teal-subtle)',    color: 'var(--color-teal)',    path: '/speaking'   },
+  { Icon: PencilSimpleIcon, label: 'Writing',  sub: 'Devanagari tracing',           bg: 'var(--color-saffron-subtle)', color: 'var(--color-saffron)', path: '/writing'    },
+  { Icon: BookOpenIcon,     label: 'Reading',  sub: 'Passages & comprehension',     bg: 'var(--color-slate-subtle)',   color: 'var(--color-slate)',   path: '/reading'    },
+  { Icon: GameControllerIcon, label: 'Games', sub: 'Mini-games & drills',           bg: 'var(--color-gold-subtle)',    color: 'var(--color-gold)',    path: '/mini-games' },
+];
 
 export default function LessonsPage() {
   const navigate = useNavigate();
@@ -19,72 +28,187 @@ export default function LessonsPage() {
 
   useEffect(() => {
     setLoading(true);
-    lessonsApi.list(activeLevel).then(data => setLessons(data.lessons ?? [])).finally(() => setLoading(false));
+    lessonsApi.list(activeLevel)
+      .then(data => setLessons(data.lessons ?? []))
+      .finally(() => setLoading(false));
   }, [activeLevel]);
 
   return (
-    <div style={styles.page}>
-      <h2 style={styles.title}>Lessons</h2>
+    <div style={s.page}>
 
-      {/* Level Tabs */}
-      <div style={styles.tabs}>
+      {/* ── HEADER ── */}
+      <h2 style={s.title}>Lessons</h2>
+
+      {/* ── LEVEL TABS ── */}
+      <div style={s.tabs}>
         {LEVELS.map(level => (
           <button
             key={level}
-            style={{ ...styles.tab, ...(activeLevel === level ? { background: LEVEL_COLORS[level], color: '#fff' } : {}) }}
+            style={{ ...s.tab, ...(activeLevel === level ? s.tabActive : {}) }}
             onClick={() => setActiveLevel(level)}
           >
-            {level.charAt(0).toUpperCase() + level.slice(1)}
+            {LEVEL_LABELS[level]}
           </button>
         ))}
       </div>
 
-      {/* Lesson Cards */}
+      {/* ── SKILL GRID ── */}
+      <p style={s.sectionLabel}>Skills</p>
+      <div style={s.skillGrid}>
+        {SKILLS.map(({ Icon, label, sub, bg, color, path }) => (
+          <div key={label} style={{ ...s.skillCard, background: bg }} onClick={() => navigate(path)}>
+            <Icon size={26} weight="duotone" color={color} style={{ marginBottom: 4 }} />
+            <span style={{ ...s.skillLabel, color }}>{label}</span>
+            <span style={s.skillSub}>{sub}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── LESSON LIST ── */}
+      <p style={s.sectionLabel}>
+        Unit 1 — {activeLevel === 'beginner' ? 'Vowels & Consonants' : activeLevel === 'intermediate' ? 'Words & Sentences' : 'Paragraphs & Poems'}
+      </p>
+
       {loading ? (
-        <div style={styles.loading}>Loading lessons...</div>
+        <div style={s.loadingWrap}>
+          {[1, 2, 3].map(i => <div key={i} style={s.skeletonRow} />)}
+        </div>
       ) : (
-        <div style={styles.list}>
-          {lessons.map((lesson, i) => (
-            <div key={lesson.id} style={styles.card} onClick={() => navigate(`/lessons/${lesson.id}`)}>
-              <div style={{ ...styles.cardNum, background: LEVEL_COLORS[activeLevel] }}>{i + 1}</div>
-              <div style={styles.cardBody}>
-                <h3 style={styles.cardTitle}>{lesson.title}</h3>
-                <p style={styles.cardMarathi}>{lesson.titleMarathi}</p>
-                <div style={styles.cardMeta}>
-                  <span style={styles.metaTag}>{lesson.topic}</span>
-                  <span style={styles.metaTime}>⏱ {lesson.estimatedMinutes} min</span>
+        <div style={s.list}>
+          {lessons.length > 0 ? lessons.map((lesson, i) => {
+            const status = lesson.userProgress?.status;
+            const isDone   = status === 'completed';
+            const isActive = status === 'in_progress' || (!isDone && i === 0);
+            const isLocked = !isDone && !isActive;
+
+            return (
+              <div
+                key={lesson.id}
+                style={{ ...s.lessonRow, ...(isActive ? s.lessonRowActive : {}), ...(isLocked ? s.lessonRowLocked : {}) }}
+                onClick={() => !isLocked && navigate(`/lessons/${lesson.id}`)}
+              >
+                {/* Number badge */}
+                <div style={{ ...s.badge, background: isDone ? 'var(--color-success)' : isActive ? 'var(--color-teal)' : 'var(--color-border)' }}>
+                  <span style={{ ...s.badgeText, color: isDone || isActive ? '#fff' : 'var(--color-muted)' }}>
+                    {isDone ? '✓' : i + 1}
+                  </span>
                 </div>
+
+                {/* Content */}
+                <div style={s.lessonBody}>
+                  <p style={{ ...s.lessonTitle, color: isLocked ? 'var(--color-muted)' : 'var(--color-slate)' }}>
+                    {lesson.title}
+                  </p>
+                  <p style={s.lessonMeta}>
+                    {lesson.estimatedMinutes} min
+                    {lesson.topic ? ` · ${lesson.topic}` : ''}
+                    {isDone ? ' · Completed' : isActive ? ' · In Progress' : ' · Locked'}
+                  </p>
+                </div>
+
+                {/* Right icon */}
+                {isLocked
+                  ? <LockIcon size={16} color="var(--color-muted)" />
+                  : <ArrowRightIcon size={18} weight="bold" color={isActive ? 'var(--color-teal)' : 'var(--color-border)'} />
+                }
               </div>
-              {lesson.userProgress?.status === 'completed' && <span style={styles.checkmark}>✓</span>}
-              <span style={styles.arrow}>›</span>
-            </div>
-          ))}
-          {!lessons.length && <p style={styles.empty}>No lessons found for this level.</p>}
+            );
+          }) : (
+            // Fallback static lessons when API returns empty
+            [
+              { num: 1, title: 'Vowels: अ आ इ ई', meta: '8 min · Completed', done: true },
+              { num: 2, title: 'Vowels: उ ऊ ए ऐ', meta: '10 min · In Progress', active: true },
+              { num: 3, title: 'Consonants: क ख ग', meta: '12 min · Locked', locked: true },
+            ].map(({ num, title, meta, done, active, locked }) => (
+              <div key={num} style={{ ...s.lessonRow, ...(active ? s.lessonRowActive : {}), ...(locked ? s.lessonRowLocked : {}) }}>
+                <div style={{ ...s.badge, background: done ? 'var(--color-success)' : active ? 'var(--color-teal)' : 'var(--color-border)' }}>
+                  <span style={{ ...s.badgeText, color: done || active ? '#fff' : 'var(--color-muted)' }}>
+                    {done ? '✓' : num}
+                  </span>
+                </div>
+                <div style={s.lessonBody}>
+                  <p style={{ ...s.lessonTitle, color: locked ? 'var(--color-muted)' : 'var(--color-slate)', fontFamily: 'var(--font-devanagari)' }}>{title}</p>
+                  <p style={s.lessonMeta}>{meta}</p>
+                </div>
+                {locked ? <LockIcon size={16} color="var(--color-muted)" /> : <ArrowRightIcon size={18} weight="bold" color={active ? 'var(--color-teal)' : 'var(--color-border)'} />}
+              </div>
+            ))
+          )}
         </div>
       )}
 
-      <button style={styles.backBtn} onClick={() => navigate('/dashboard')}>← Dashboard</button>
+      <BottomNav />
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 480, margin: '0 auto', padding: '24px 16px', fontFamily: 'system-ui, sans-serif', background: '#f8f9fa', minHeight: '100vh' },
-  title: { fontSize: 24, fontWeight: 800, color: '#1a1a2e', margin: '0 0 20px' },
-  tabs: { display: 'flex', gap: 8, marginBottom: 20 },
-  tab: { flex: 1, padding: '10px', borderRadius: 12, border: '2px solid #e0e0e0', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 13, color: '#666', transition: 'all 0.2s' },
-  list: { display: 'flex', flexDirection: 'column', gap: 12 },
-  card: { background: '#fff', borderRadius: 16, padding: '16px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', cursor: 'pointer', transition: 'transform 0.15s' },
-  cardNum: { width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 },
-  cardBody: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: 700, color: '#1a1a2e', margin: '0 0 2px' },
-  cardMarathi: { fontSize: 14, color: '#666', margin: '0 0 6px' },
-  cardMeta: { display: 'flex', gap: 8, alignItems: 'center' },
-  metaTag: { background: '#f0f0f0', borderRadius: 20, padding: '2px 8px', fontSize: 11, color: '#666', textTransform: 'capitalize' },
-  metaTime: { fontSize: 11, color: '#888' },
-  checkmark: { color: '#4CAF50', fontWeight: 800, fontSize: 18 },
-  arrow: { color: '#ccc', fontSize: 24 },
-  loading: { textAlign: 'center', padding: 40, color: '#888' },
-  empty: { textAlign: 'center', color: '#888', padding: 40 },
-  backBtn: { marginTop: 24, background: 'none', border: 'none', color: '#FF6B35', fontWeight: 600, cursor: 'pointer', fontSize: 15 },
+const s: Record<string, React.CSSProperties> = {
+  page: {
+    maxWidth: 480, margin: '0 auto',
+    padding: '52px 24px 100px',
+    fontFamily: 'var(--font-ui)',
+    background: 'var(--color-bg)',
+    minHeight: '100vh',
+  },
+
+  // Header
+  title: { fontSize: 24, fontWeight: 800, color: 'var(--color-slate)', margin: '0 0 20px' },
+
+  // Level tabs
+  tabs: { display: 'flex', gap: 8, marginBottom: 24 },
+  tab: {
+    flex: 1, padding: '9px 4px',
+    borderRadius: 18, border: '1.5px solid var(--color-border)',
+    background: 'var(--color-surface)', cursor: 'pointer',
+    fontWeight: 600, fontSize: 13, color: 'var(--color-text-secondary)',
+    transition: 'all 0.15s',
+  },
+  tabActive: {
+    background: 'var(--color-teal)',
+    borderColor: 'var(--color-teal)',
+    color: '#fff',
+  },
+
+  // Section label
+  sectionLabel: { fontSize: 16, fontWeight: 700, color: 'var(--color-slate)', margin: '0 0 12px' },
+
+  // Skill grid
+  skillGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 },
+  skillCard: {
+    borderRadius: 'var(--radius-lg)', padding: '16px',
+    display: 'flex', flexDirection: 'column', gap: 4,
+    cursor: 'pointer',
+  },
+  skillLabel: { fontSize: 15, fontWeight: 700 },
+  skillSub:   { fontSize: 11, color: 'var(--color-text-secondary)' },
+
+  // Lesson list
+  loadingWrap: { display: 'flex', flexDirection: 'column', gap: 12 },
+  skeletonRow: { height: 64, borderRadius: 'var(--radius-lg)', background: 'var(--color-border)' },
+  list: { display: 'flex', flexDirection: 'column', gap: 10 },
+
+  lessonRow: {
+    display: 'flex', alignItems: 'center', gap: 14,
+    background: 'var(--color-surface)',
+    borderRadius: 'var(--radius-lg)', padding: '14px 16px',
+    border: '1px solid var(--color-border)',
+    cursor: 'pointer',
+  },
+  lessonRowActive: {
+    borderColor: 'var(--color-teal)',
+    borderWidth: 1.5,
+    background: 'var(--color-teal-subtle)',
+  },
+  lessonRowLocked: { cursor: 'default', opacity: 0.7 },
+
+  badge: {
+    width: 36, height: 36, borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  badgeText: { fontSize: 14, fontWeight: 700 },
+
+  lessonBody: { flex: 1 },
+  lessonTitle: { fontSize: 14, fontWeight: 600, margin: '0 0 3px', fontFamily: 'var(--font-devanagari)' },
+  lessonMeta:  { fontSize: 11, color: 'var(--color-text-secondary)', margin: 0, textTransform: 'capitalize' },
 };

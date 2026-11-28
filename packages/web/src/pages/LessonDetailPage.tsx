@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { lessonsApi, progressApi, quizzesApi, gamificationApi } from '../api/client';
+import TransitionOverlay from '../components/TransitionOverlay';
 
 type Step = 'intro' | 'phrases' | 'quiz' | 'complete';
 
@@ -14,6 +15,7 @@ export default function LessonDetailPage() {
   const [quizResult, setQuizResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [overlay, setOverlay] = useState<{ xp: number; score: number } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -34,9 +36,11 @@ export default function LessonDetailPage() {
       setQuizResult(result);
 
       // Award XP
-      await gamificationApi.awardXp(50 + result.quizXp, 'lesson', `lesson_${lesson.id}`);
+      const earnedXp = 50 + ((result as any).quizXp ?? 0);
+      await gamificationApi.awardXp(earnedXp, 'lesson', `lesson_${lesson.id}`);
       await gamificationApi.recordActivity();
-      await progressApi.save(lesson.id, 'completed', result.score);
+      await progressApi.save(lesson.id, 'completed', (result as any).score ?? 0);
+      setOverlay({ xp: earnedXp, score: (result as any).score ?? 0 });
       setStep('complete');
     } finally {
       setSubmitting(false);
@@ -134,55 +138,52 @@ export default function LessonDetailPage() {
       )}
 
       {/* COMPLETE */}
-      {step === 'complete' && quizResult && (
+      {step === 'complete' && (
         <div style={{ ...styles.stepContainer, textAlign: 'center' }}>
-          <div style={styles.celebrationEmoji}>🎉</div>
-          <h2 style={styles.completeTitle}>Lesson Complete!</h2>
-          <div style={styles.scoreCircle}>
-            <span style={styles.scoreNum}>{quizResult.score}%</span>
-            <span style={styles.scoreLabel}>Quiz Score</span>
-          </div>
-          <div style={styles.xpBadge}>+{50 + quizResult.quizXp} XP earned!</div>
+          <p style={{ fontSize: 15, color: 'var(--color-text-muted)' }}>Great work! Your results are saved.</p>
           <button style={styles.primaryBtn} onClick={() => navigate('/lessons')}>Next Lesson →</button>
           <button style={styles.backLink} onClick={() => navigate('/dashboard')}>Go to Dashboard</button>
         </div>
+      )}
+
+      {overlay && (
+        <TransitionOverlay
+          variant="lesson-complete"
+          score={overlay.score}
+          xp={overlay.xp}
+          onDismiss={() => setOverlay(null)}
+        />
       )}
     </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 480, margin: '0 auto', fontFamily: 'system-ui, sans-serif', background: '#f8f9fa', minHeight: '100vh' },
-  loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: 18, color: '#666' },
-  progressBar: { height: 4, background: '#e0e0e0', position: 'sticky', top: 0, zIndex: 10 },
-  progressFill: { height: '100%', background: 'linear-gradient(90deg, #FF6B35, #F7931E)', transition: 'width 0.4s ease' },
+  page: { maxWidth: 480, margin: '0 auto', fontFamily: 'var(--font-sans)', background: 'var(--color-bg)', minHeight: '100vh' },
+  loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: 18, color: 'var(--color-text-muted)' },
+  progressBar: { height: 4, background: 'var(--color-border)', position: 'sticky', top: 0, zIndex: 10 },
+  progressFill: { height: '100%', background: 'linear-gradient(90deg, var(--color-teal), var(--color-teal-light))', transition: 'width 0.4s ease' },
   stepContainer: { padding: '32px 20px', display: 'flex', flexDirection: 'column', gap: 16 },
-  lessonTitle: { fontSize: 28, fontWeight: 800, color: '#1a1a2e', margin: 0 },
-  lessonMarathi: { fontSize: 22, color: '#FF6B35', fontWeight: 600, margin: 0 },
+  lessonTitle: { fontSize: 28, fontWeight: 800, color: 'var(--color-slate)', margin: 0 },
+  lessonMarathi: { fontSize: 22, color: 'var(--color-teal)', fontWeight: 600, margin: 0, fontFamily: 'var(--font-devanagari)' },
   infoRow: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  infoBadge: { background: '#f0f0f0', borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#666', textTransform: 'capitalize' },
-  infoText: { color: '#666', fontSize: 15, margin: 0 },
-  stepLabel: { fontSize: 13, color: '#888', fontWeight: 600, margin: 0 },
-  phraseCard: { background: '#fff', borderRadius: 20, padding: '28px 24px', textAlign: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' },
-  marathiText: { fontSize: 32, fontWeight: 800, color: '#1a1a2e', margin: '0 0 8px', lineHeight: 1.4 },
-  transliteration: { fontSize: 18, color: '#FF6B35', fontWeight: 600, margin: '0 0 8px' },
-  englishMeaning: { fontSize: 16, color: '#666', margin: '0 0 16px' },
-  audioBtn: { background: '#f0f0f0', border: 'none', borderRadius: 20, padding: '8px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
+  infoBadge: { background: 'var(--color-border)', borderRadius: 20, padding: '4px 12px', fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'capitalize' },
+  infoText: { color: 'var(--color-text-muted)', fontSize: 15, margin: 0 },
+  stepLabel: { fontSize: 13, color: 'var(--color-text-muted)', fontWeight: 600, margin: 0 },
+  phraseCard: { background: 'var(--color-surface)', borderRadius: 20, padding: '28px 24px', textAlign: 'center', boxShadow: 'var(--shadow-md)' },
+  marathiText: { fontSize: 32, fontWeight: 800, color: 'var(--color-slate)', margin: '0 0 8px', lineHeight: 1.4, fontFamily: 'var(--font-devanagari)' },
+  transliteration: { fontSize: 18, color: 'var(--color-teal)', fontWeight: 600, margin: '0 0 8px' },
+  englishMeaning: { fontSize: 16, color: 'var(--color-text-muted)', margin: '0 0 16px' },
+  audioBtn: { background: 'var(--color-teal-subtle)', border: 'none', borderRadius: 20, padding: '8px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: 'var(--color-teal)' },
   navRow: { display: 'flex', gap: 12, justifyContent: 'flex-end' },
-  primaryBtn: { background: '#FF6B35', color: '#fff', border: 'none', borderRadius: 14, padding: '14px 28px', fontSize: 16, fontWeight: 700, cursor: 'pointer' },
-  secondaryBtn: { background: '#f0f0f0', color: '#333', border: 'none', borderRadius: 14, padding: '14px 28px', fontSize: 16, fontWeight: 600, cursor: 'pointer' },
-  backLink: { background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 14, textAlign: 'center' },
-  quizTitle: { fontSize: 22, fontWeight: 800, color: '#1a1a2e', margin: 0 },
-  questionCard: { background: '#fff', borderRadius: 16, padding: '16px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  questionText: { fontSize: 16, fontWeight: 600, color: '#1a1a2e', margin: '0 0 12px' },
+  primaryBtn: { background: 'var(--color-teal)', color: '#fff', border: 'none', borderRadius: 14, padding: '14px 28px', fontSize: 16, fontWeight: 700, cursor: 'pointer' },
+  secondaryBtn: { background: 'var(--color-border)', color: 'var(--color-text)', border: 'none', borderRadius: 14, padding: '14px 28px', fontSize: 16, fontWeight: 600, cursor: 'pointer' },
+  backLink: { background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 14, textAlign: 'center' },
+  quizTitle: { fontSize: 22, fontWeight: 800, color: 'var(--color-slate)', margin: 0 },
+  questionCard: { background: 'var(--color-surface)', borderRadius: 16, padding: '16px 20px', boxShadow: 'var(--shadow-sm)' },
+  questionText: { fontSize: 16, fontWeight: 600, color: 'var(--color-text)', margin: '0 0 12px' },
   options: { display: 'flex', flexDirection: 'column', gap: 8 },
-  optionBtn: { padding: '12px 16px', borderRadius: 12, border: '2px solid #e0e0e0', background: '#fff', cursor: 'pointer', fontSize: 15, textAlign: 'left', transition: 'all 0.15s' },
-  optionSelected: { border: '2px solid #FF6B35', background: '#fff5f0', color: '#FF6B35', fontWeight: 600 },
-  fillInput: { width: '100%', padding: '12px 16px', borderRadius: 12, border: '2px solid #e0e0e0', fontSize: 15, outline: 'none', boxSizing: 'border-box' },
-  celebrationEmoji: { fontSize: 64 },
-  completeTitle: { fontSize: 28, fontWeight: 800, color: '#1a1a2e', margin: 0 },
-  scoreCircle: { width: 120, height: 120, borderRadius: '50%', background: 'linear-gradient(135deg, #FF6B35, #F7931E)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto', color: '#fff' },
-  scoreNum: { fontSize: 28, fontWeight: 800 },
-  scoreLabel: { fontSize: 12, opacity: 0.9 },
-  xpBadge: { background: '#fff3cd', color: '#856404', borderRadius: 20, padding: '8px 20px', fontWeight: 700, fontSize: 16, display: 'inline-block' },
+  optionBtn: { padding: '12px 16px', borderRadius: 12, border: '2px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer', fontSize: 15, textAlign: 'left', transition: 'all 0.15s' },
+  optionSelected: { border: '2px solid var(--color-teal)', background: 'var(--color-teal-subtle)', color: 'var(--color-teal)', fontWeight: 600 },
+  fillInput: { width: '100%', padding: '12px 16px', borderRadius: 12, border: '2px solid var(--color-border)', fontSize: 15, outline: 'none', boxSizing: 'border-box', background: 'var(--color-bg)', color: 'var(--color-text)' },
 };

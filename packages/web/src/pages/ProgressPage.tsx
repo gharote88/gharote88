@@ -2,6 +2,18 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { progressApi, gamificationApi } from '../api/client';
 import { useAuthStore } from '../store/authStore';
+import { 
+  MicrophoneIcon, 
+  PencilSimpleIcon, 
+  BookOpenIcon, 
+  BrainIcon, 
+  FireIcon, 
+  SnowflakeIcon, 
+  LockIcon, 
+  ArrowLeftIcon, 
+  ArrowRightIcon, 
+  MedalIcon 
+} from '@phosphor-icons/react';
 
 export default function ProgressPage() {
   const navigate = useNavigate();
@@ -54,16 +66,16 @@ export default function ProgressPage() {
   });
 
   const skills = [
-    { label: 'Speaking', icon: '🎤', value: `${dashboard?.speakingAvgScore ?? 0}%`, sub: 'avg accuracy' },
-    { label: 'Writing', icon: '✍️', value: `${dashboard?.charactersMastered ?? 0}`, sub: 'chars mastered' },
-    { label: 'Reading', icon: '📖', value: `${dashboard?.avgWpm ?? 0} WPM`, sub: 'avg speed' },
-    { label: 'Comprehension', icon: '🧠', value: `${dashboard?.comprehensionAvg ?? 0}%`, sub: 'avg score' },
+    { label: 'Speaking', Icon: MicrophoneIcon, value: `${dashboard?.speakingAvgScore ?? 0}%`, sub: 'avg accuracy' },
+    { label: 'Writing', Icon: PencilSimpleIcon, value: `${dashboard?.charactersMastered ?? 0}`, sub: 'chars mastered' },
+    { label: 'Reading', Icon: BookOpenIcon, value: `${dashboard?.avgWpm ?? 0} WPM`, sub: 'avg speed' },
+    { label: 'Comprehension', Icon: BrainIcon, value: `${dashboard?.comprehensionAvg ?? 0}%`, sub: 'avg score' },
   ];
 
   return (
     <div style={s.page}>
       <div style={s.header}>
-        <button style={s.back} onClick={() => navigate('/dashboard')}>← Back</button>
+        <button style={s.back} onClick={() => navigate('/dashboard')}><ArrowLeftIcon size={20} weight="bold" /></button>
         <h2 style={s.title}>My Progress</h2>
       </div>
 
@@ -86,7 +98,7 @@ export default function ProgressPage() {
           </div>
         </div>
         <div style={s.streakRow}>
-          <span style={s.streakFire}>🔥</span>
+          <FireIcon size={20} weight="fill" color="var(--color-saffron)" />
           <span style={s.streakVal}>{streak?.currentStreak ?? 0} day streak</span>
           <span style={s.streakBest}>Best: {streak?.longestStreak ?? 0}</span>
           <button
@@ -95,7 +107,7 @@ export default function ProgressPage() {
             disabled={!streak?.streakFreezeAvailable || freezing}
             title={streak?.streakFreezeAvailable ? 'Use streak freeze to protect your streak for 1 missed day' : 'Freeze used this week'}
           >
-            {streak?.streakFreezeAvailable ? '🧊 Freeze' : '🧊 Used'}
+            <SnowflakeIcon size={12} weight="bold" style={{ verticalAlign: 'middle', marginRight: 3 }} />{streak?.streakFreezeAvailable ? 'Freeze' : 'Used'}
           </button>
         </div>
       </div>
@@ -105,7 +117,7 @@ export default function ProgressPage() {
       <div style={s.skillGrid}>
         {skills.map(sk => (
           <div key={sk.label} style={s.skillCard}>
-            <span style={s.skillIcon}>{sk.icon}</span>
+            <sk.Icon size={24} weight="duotone" color="var(--color-teal)" style={{ marginBottom: 4 }} />
             <span style={s.skillVal}>{sk.value}</span>
             <span style={s.skillLabel}>{sk.label}</span>
             <span style={s.skillSub}>{sk.sub}</span>
@@ -134,13 +146,13 @@ export default function ProgressPage() {
       <div style={s.badgeGrid}>
         {earned.map(b => (
           <div key={b.id} style={s.badgeCard}>
-            <span style={s.badgeIcon}>{b.icon ?? '🏅'}</span>
+            <span style={s.badgeIcon}>{b.icon ?? <MedalIcon size={28} weight="fill" color="var(--color-gold)" />}</span>
             <span style={s.badgeName}>{b.name}</span>
           </div>
         ))}
         {locked.map(b => (
           <div key={b.id} style={{ ...s.badgeCard, ...s.badgeLocked }}>
-            <span style={s.badgeIcon}>🔒</span>
+            <LockIcon size={28} color="var(--color-muted)" />
             <span style={s.badgeName}>{b.name}</span>
             {b.progress !== undefined && (
               <div style={s.badgeProgressBg}>
@@ -158,7 +170,7 @@ export default function ProgressPage() {
             <p style={s.ctaLabel}>Continue Learning</p>
             <p style={s.ctaTitle}>{dashboard.nextLesson.title}</p>
           </div>
-          <span style={s.ctaArrow}>→</span>
+          <ArrowRightIcon size={24} color="var(--color-teal)" style={{ marginLeft: 'auto' }} />
         </div>
       )}
     </div>
@@ -166,47 +178,44 @@ export default function ProgressPage() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 480, margin: '0 auto', padding: '24px 16px 40px', fontFamily: 'system-ui, sans-serif', background: '#f8f9fa', minHeight: '100vh' },
-  loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: 18, color: '#666' },
+  page: { maxWidth: 480, margin: '0 auto', padding: '24px 16px 40px', fontFamily: 'var(--font-sans)', background: 'var(--color-bg)', minHeight: '100vh' },
+  loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: 18, color: 'var(--color-text-muted)' },
   header: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 },
-  back: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#FF6B35', fontWeight: 600, padding: 0 },
-  title: { flex: 1, fontSize: 20, fontWeight: 700, margin: 0, color: '#1a1a2e' },
-  overviewCard: { background: '#fff', borderRadius: 20, padding: '20px', marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' },
+  back: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--color-teal)', fontWeight: 600, padding: 0 },
+  title: { flex: 1, fontSize: 20, fontWeight: 700, margin: 0, color: 'var(--color-slate)' },
+  overviewCard: { background: 'var(--color-surface)', borderRadius: 20, padding: '20px', marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' },
   overviewRow: { display: 'flex', alignItems: 'center', marginBottom: 16 },
   overviewStat: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 },
-  overviewVal: { fontSize: 24, fontWeight: 800, color: '#1a1a2e' },
-  overviewLabel: { fontSize: 11, color: '#888', fontWeight: 500 },
-  overviewDivider: { width: 1, height: 40, background: '#f0f0f0' },
-  streakRow: { display: 'flex', alignItems: 'center', gap: 8, background: '#fff8f0', borderRadius: 12, padding: '10px 14px' },
-  streakFire: { fontSize: 20 },
-  streakVal: { flex: 1, fontSize: 15, fontWeight: 700, color: '#FF6B35' },
-  streakBest: { fontSize: 12, color: '#888' },
-  sectionLabel: { fontSize: 13, fontWeight: 700, color: '#888', textTransform: 'uppercase', margin: '0 0 12px', letterSpacing: 0.5 },
+  overviewVal: { fontSize: 24, fontWeight: 800, color: 'var(--color-slate)' },
+  overviewLabel: { fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 500 },
+  overviewDivider: { width: 1, height: 40, background: 'var(--color-border)' },
+  streakRow: { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--color-saffron-subtle)', borderRadius: 12, padding: '10px 14px' },
+  streakVal: { flex: 1, fontSize: 15, fontWeight: 700, color: 'var(--color-saffron)' },
+  streakBest: { fontSize: 12, color: 'var(--color-text-muted)' },
+  sectionLabel: { fontSize: 13, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', margin: '0 0 12px', letterSpacing: 0.5 },
   skillGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 },
-  skillCard: { background: '#fff', borderRadius: 16, padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  skillIcon: { fontSize: 24, marginBottom: 4 },
-  skillVal: { fontSize: 22, fontWeight: 800, color: '#1a1a2e' },
-  skillLabel: { fontSize: 13, fontWeight: 600, color: '#444' },
-  skillSub: { fontSize: 11, color: '#aaa' },
-  calCard: { background: '#fff', borderRadius: 16, padding: '16px', marginBottom: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  skillCard: { background: 'var(--color-surface)', borderRadius: 16, padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  skillVal: { fontSize: 22, fontWeight: 800, color: 'var(--color-slate)' },
+  skillLabel: { fontSize: 13, fontWeight: 600, color: 'var(--color-text)' },
+  skillSub: { fontSize: 11, color: 'var(--color-text-muted)' },
+  calCard: { background: 'var(--color-surface)', borderRadius: 16, padding: '16px', marginBottom: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   calGrid: { display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 4, marginBottom: 10 },
-  calDay: { aspectRatio: '1', borderRadius: 6, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  calDayActive: { background: '#FF6B35' },
+  calDay: { aspectRatio: '1', borderRadius: 6, background: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  calDayActive: { background: 'var(--color-teal)' },
   calDayNum: { fontSize: 9, color: '#fff', fontWeight: 600 },
-  calLegend: { display: 'flex', alignItems: 'center', fontSize: 11, color: '#888' },
-  calDotActive: { display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: '#FF6B35', marginRight: 4 },
-  calDotInactive: { display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: '#f0f0f0', marginRight: 4 },
+  calLegend: { display: 'flex', alignItems: 'center', fontSize: 11, color: 'var(--color-text-muted)' },
+  calDotActive: { display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: 'var(--color-teal)', marginRight: 4 },
+  calDotInactive: { display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: 'var(--color-border)', marginRight: 4 },
   badgeGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 },
-  badgeCard: { background: '#fff', borderRadius: 16, padding: '14px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  badgeCard: { background: 'var(--color-surface)', borderRadius: 16, padding: '14px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   badgeLocked: { opacity: 0.5 },
   badgeIcon: { fontSize: 28 },
-  badgeName: { fontSize: 11, fontWeight: 600, color: '#444', textAlign: 'center' },
-  badgeProgressBg: { width: '100%', height: 4, background: '#f0f0f0', borderRadius: 2, overflow: 'hidden', marginTop: 4 },
-  badgeProgressFill: { height: '100%', background: '#FF6B35', borderRadius: 2 },
-  freezeBtn: { background: '#e0f2fe', color: '#0369a1', border: 'none', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 },
-  freezeBtnUsed: { background: '#f0f0f0', color: '#aaa', cursor: 'not-allowed' },
-  ctaCard: { background: '#fff', borderRadius: 16, padding: '16px 20px', display: 'flex', alignItems: 'center', cursor: 'pointer', border: '2px solid #FF6B35', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  ctaLabel: { fontSize: 11, color: '#FF6B35', fontWeight: 700, textTransform: 'uppercase', margin: '0 0 4px' },
-  ctaTitle: { fontSize: 16, fontWeight: 700, color: '#1a1a2e', margin: 0 },
-  ctaArrow: { fontSize: 24, color: '#FF6B35', marginLeft: 'auto' },
+  badgeName: { fontSize: 11, fontWeight: 600, color: 'var(--color-text)', textAlign: 'center' },
+  badgeProgressBg: { width: '100%', height: 4, background: 'var(--color-border)', borderRadius: 2, overflow: 'hidden', marginTop: 4 },
+  badgeProgressFill: { height: '100%', background: 'var(--color-teal)', borderRadius: 2 },
+  freezeBtn: { background: 'var(--color-teal-subtle)', color: 'var(--color-teal)', border: 'none', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 },
+  freezeBtnUsed: { background: 'var(--color-border)', color: 'var(--color-text-muted)', cursor: 'not-allowed' },
+  ctaCard: { background: 'var(--color-surface)', borderRadius: 16, padding: '16px 20px', display: 'flex', alignItems: 'center', cursor: 'pointer', border: '2px solid var(--color-teal)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  ctaLabel: { fontSize: 11, color: 'var(--color-teal)', fontWeight: 700, textTransform: 'uppercase', margin: '0 0 4px' },
+  ctaTitle: { fontSize: 16, fontWeight: 700, color: 'var(--color-slate)', margin: 0 },
 };

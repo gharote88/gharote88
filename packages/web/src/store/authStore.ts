@@ -24,10 +24,12 @@ interface AuthStore {
   xp: XpState | null;
   loading: boolean;
   initialized: boolean;
+  onboardingComplete: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
   init: () => () => void;
   refreshXp: () => Promise<void>;
+  setOnboardingComplete: (val: boolean) => void;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -36,15 +38,29 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   xp: null,
   loading: false,
   initialized: false,
+  onboardingComplete: false,
 
   init: () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const { data } = await supabase
+        let { data } = await supabase
           .from('users')
           .select('*')
           .eq('id', session.user.id)
           .single();
+
+        if (!data) {
+          const newUser = {
+            id: session.user.id,
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '',
+            email: session.user.email || '',
+            avatar_url: session.user.user_metadata?.avatar_url || null,
+            google_id: session.user.user_metadata?.provider_id || null,
+            role: 'learner' as const,
+          };
+          const { data: inserted } = await supabase.from('users').insert(newUser).select().single();
+          data = inserted;
+        }
 
         set({
           session,
@@ -57,6 +73,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             under13: data.under_13,
             role: data.role || 'learner',
           } : null,
+          onboardingComplete: data?.onboarding_complete ?? false,
           initialized: true,
         });
 
@@ -84,8 +101,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   logout: async () => {
     await supabase.auth.signOut();
-    set({ user: null, session: null, xp: null });
+    set({ user: null, session: null, xp: null, onboardingComplete: false });
   },
+
+  setOnboardingComplete: (val: boolean) => set({ onboardingComplete: val }),
 
   refreshXp: async () => {
     const { user } = get();
@@ -99,6 +118,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (data) {
         set({ xp: { totalXp: data.total_xp || 0, level: data.level || 1, levelTitle: data.level_title || 'Beginner' } });
       }
-    } catch {}
+    } catch {
+      set({ xp: null });
+    }
   },
 }));
